@@ -150,7 +150,7 @@ export async function registerPushSubscription(profileId: string): Promise<boole
     // 1. Fetch server VAPID key
     let vapidPublicKey = '';
     try {
-      const res = await fetch('/api/notifications/vapid-public-key');
+      const res = await fetch('/api/notifications?action=vapid-public-key');
       const data = await res.json();
       vapidPublicKey = data.publicKey;
     } catch {
@@ -169,7 +169,7 @@ export async function registerPushSubscription(profileId: string): Promise<boole
 
     if (subscription) {
       // Send subscription to server
-      await fetch('/api/notifications/subscribe', {
+      await fetch('/api/notifications?action=subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

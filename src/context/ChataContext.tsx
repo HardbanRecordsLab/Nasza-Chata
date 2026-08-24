@@ -248,7 +248,7 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const persistState = useCallback((stateUpdate: any) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stateUpdate));
-      fetch('/api/state/sync', {
+      fetch('/api/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(stateUpdate),

@@ -145,7 +145,7 @@ export const ShoppingView: React.FC = () => {
     reader.onload = async () => {
       try {
         const base64 = reader.result as string;
-        const res = await fetch('/api/ai/scan-handwritten', {
+        const res = await fetch('/api/ai?action=scan-handwritten', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageBase64: base64, mode: 'receipt' }),

@@ -97,7 +97,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ onClose, taskToEdit 
     reader.onload = async () => {
       try {
         const base64 = reader.result as string;
-        const res = await fetch('/api/ai/scan-chores-vision', {
+        const res = await fetch('/api/ai?action=scan-chores-vision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

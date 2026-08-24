@@ -92,7 +92,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
       });
 
       // 3. Also trigger real server Web Push endpoint
-      await fetch('/api/notifications/test', {
+      await fetch('/api/notifications?action=test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

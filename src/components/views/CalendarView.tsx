@@ -72,7 +72,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask }) => 
   });
 
   const handleExportIcs = () => {
-    window.open('/api/export/calendar.ics', '_blank');
+    window.open('/api/export?action=calendar.ics', '_blank');
     showToast('Pobieranie kalendarza', 'Plik .ics dla Kalendarza Google/Apple został wygenerowany.', 'success');
   };
 

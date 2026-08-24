@@ -833,7 +833,7 @@ export const HouseOverviewView: React.FC = () => {
             </div>
 
             <a
-              href="/api/export/backup.json"
+              href="/api/export?action=backup.json"
               download="nasza-chata-backup.json"
               className="px-4 py-2 bg-[#2D4F1E] hover:bg-[#1f3715] text-[#FDFCF0] rounded-xl text-xs font-bold flex items-center gap-2 transition-colors shadow-xs"
             >
@@ -854,7 +854,7 @@ export const HouseOverviewView: React.FC = () => {
             </div>
 
             <a
-              href="/api/export/yearly-chronicle"
+              href="/api/export?action=yearly-chronicle"
               target="_blank"
               className="px-4 py-2 bg-[#D97706] hover:bg-[#b45309] text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-colors shadow-xs"
             >

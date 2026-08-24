@@ -61,7 +61,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({ onClose, onR
     setScanResult(null);
 
     try {
-      const res = await fetch('/api/ai/scan-handwritten', {
+      const res = await fetch('/api/ai?action=scan-handwritten', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: dataUrl, mode: 'receipt' }),

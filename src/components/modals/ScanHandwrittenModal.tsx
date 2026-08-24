@@ -77,7 +77,7 @@ export const ScanHandwrittenModal: React.FC<ScanHandwrittenModalProps> = ({ onCl
     try {
       const familyProfilesList = profiles.map(p => `${p.name} (${p.roleTitle || 'Domownik'})`);
 
-      const response = await fetch('/api/ai/scan-chores-vision', {
+      const response = await fetch('/api/ai?action=scan-chores-vision', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

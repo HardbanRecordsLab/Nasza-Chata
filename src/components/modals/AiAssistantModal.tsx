@@ -32,7 +32,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose }) =
     setLoading(true);
 
     try {
-      const res = await fetch('/api/ai/chat', {
+      const res = await fetch('/api/ai?action=chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userText }),
