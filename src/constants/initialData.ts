@@ -185,7 +185,7 @@ export const INITIAL_TASKS: TaskDefinition[] = [
     id: 'task-kitchen-floor',
     name: 'Sprzątanie kuchni i mycie podłogi',
     category: 'cleaning',
-    frequency: 'twice_weekly',
+    frequency: 'every_other_day',
     seasonStart: null,
     seasonEnd: null,
     isCustom: false,
