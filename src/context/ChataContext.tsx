@@ -616,7 +616,24 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       entries: [],
     };
     setVisualZones(prev => [...prev, newZone]);
-    showToast('Dodano strefę wizualną', newZone.name, 'success');
+
+    // Auto-create monthly cyclic task for photo updates
+    const updateTask: TaskDefinition = {
+      id: 'task-visual-update-' + Date.now().toString(),
+      name: `Zaktualizuj zdjęcia: ${newZone.name}`,
+      category: 'maintenance',
+      frequency: 'monthly',
+      seasonStart: null,
+      seasonEnd: null,
+      isCustom: false,
+      room: newZone.name,
+      defaultOrder: 50,
+      description: `Cykliczna aktualizacja dokumentacji fotograficznej strefy „${newZone.name}".`,
+      createdAt: new Date().toISOString(),
+      archivedAt: null,
+    };
+    setTasks(prev => [...prev, updateTask]);
+    showToast('Dodano strefę wizualną', `${newZone.name} + zadanie przypominające (miesięcznie)`, 'success');
   };
 
   const updateVisualZone = (id: string, updates: Partial<VisualZone>) => {
