@@ -475,7 +475,11 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
         <div className="flex-1 flex flex-col sm:flex-row gap-1 p-2 overflow-hidden">
           {/* Left (older) */}
           <div className="flex-1 relative rounded-2xl overflow-hidden bg-black">
-            <img src={right.mediaUrl} alt="" className="w-full h-full object-contain" />
+            {right.mediaType === 'video' ? (
+              <video src={right.mediaUrl} controls poster={right.thumbnailUrl} className="w-full h-full object-contain" />
+            ) : (
+              <img src={right.mediaUrl} alt="" className="w-full h-full object-contain" />
+            )}
             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 p-3">
               <p className="text-white text-xs font-bold">{formatDate(right.capturedAt)}</p>
               <p className="text-white/60 text-[10px]">{right.angleLabel} • {right.capturedByName}</p>
@@ -484,7 +488,11 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
 
           {/* Right (newer) */}
           <div className="flex-1 relative rounded-2xl overflow-hidden bg-black">
-            <img src={left.mediaUrl} alt="" className="w-full h-full object-contain" />
+            {left.mediaType === 'video' ? (
+              <video src={left.mediaUrl} controls poster={left.thumbnailUrl} className="w-full h-full object-contain" />
+            ) : (
+              <img src={left.mediaUrl} alt="" className="w-full h-full object-contain" />
+            )}
             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 p-3">
               <p className="text-white text-xs font-bold">{formatDate(left.capturedAt)}</p>
               <p className="text-white/60 text-[10px]">{left.angleLabel} • {left.capturedByName}</p>
