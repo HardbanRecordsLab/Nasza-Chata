@@ -138,11 +138,22 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
     if (!videoRef.current || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+
+    // Resize to max 1920px on longest side for compression
+    const maxDim = 1920;
+    let w = video.videoWidth;
+    let h = video.videoHeight;
+    if (w > maxDim || h > maxDim) {
+      const ratio = Math.min(maxDim / w, maxDim / h);
+      w = Math.round(w * ratio);
+      h = Math.round(h * ratio);
+    }
+    canvas.width = w;
+    canvas.height = h;
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, 0, 0, w, h);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
     const angle = captureAngles[currentAngleIdx] || 'Zdjęcie';
     setCapturedPhotos(prev => [...prev, { angle, dataUrl }]);
@@ -210,7 +221,7 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
   }, [stopCamera]);
 
   // Save all captured entries
-  const saveAllEntries = useCallback(() => {
+  const saveAllEntries = useCallback(async () => {
     const angle = captureAngles[currentAngleIdx] || 'Zdjęcie';
 
     // Save photos
@@ -225,18 +236,63 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
       });
     });
 
-    // Save video if any
+    // Upload video to Blob if any
     if (videoBlob) {
-      const videoUrl = URL.createObjectURL(videoBlob);
-      addVisualEntry(zone.id, {
-        capturedAt: new Date().toISOString(),
-        capturedById: currentProfile.id,
-        capturedByName: currentProfile.name,
-        mediaType: 'video',
-        mediaUrl: videoUrl,
-        thumbnailUrl: videoThumbnail || undefined,
-        angleLabel: captureAngles[0] || 'Wideo',
-      });
+      try {
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(videoBlob);
+        });
+
+        const filename = `video-${zone.id}-${Date.now()}.webm`;
+        const res = await fetch('/api/upload-blob', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            file: base64,
+            filename,
+            folder: `visual-zones/${zone.id}`,
+            mimeType: 'video/webm',
+          }),
+        });
+
+        if (res.ok) {
+          const { url } = await res.json();
+          addVisualEntry(zone.id, {
+            capturedAt: new Date().toISOString(),
+            capturedById: currentProfile.id,
+            capturedByName: currentProfile.name,
+            mediaType: 'video',
+            mediaUrl: url,
+            thumbnailUrl: videoThumbnail || undefined,
+            angleLabel: captureAngles[0] || 'Wideo',
+          });
+        } else {
+          // Fallback to local blob URL if upload fails
+          const videoUrl = URL.createObjectURL(videoBlob);
+          addVisualEntry(zone.id, {
+            capturedAt: new Date().toISOString(),
+            capturedById: currentProfile.id,
+            capturedByName: currentProfile.name,
+            mediaType: 'video',
+            mediaUrl: videoUrl,
+            thumbnailUrl: videoThumbnail || undefined,
+            angleLabel: captureAngles[0] || 'Wideo',
+          });
+        }
+      } catch {
+        const videoUrl = URL.createObjectURL(videoBlob);
+        addVisualEntry(zone.id, {
+          capturedAt: new Date().toISOString(),
+          capturedById: currentProfile.id,
+          capturedByName: currentProfile.name,
+          mediaType: 'video',
+          mediaUrl: videoUrl,
+          thumbnailUrl: videoThumbnail || undefined,
+          angleLabel: captureAngles[0] || 'Wideo',
+        });
+      }
     }
 
     // Reset capture state
