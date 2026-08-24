@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2D4F1E" />
+      <stop offset="100%" stop-color="#1A3312" />
+    </linearGradient>
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#B45309" />
+    </linearGradient>
+    <linearGradient id="woodGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#92400E" />
+      <stop offset="100%" stop-color="#78350F" />
+    </linearGradient>
+  </defs>
+
+  <!-- App Icon Background (Rounded Squircle) -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+
+  <!-- Outer Glow Circle -->
+  <circle cx="256" cy="256" r="210" fill="#FDFCF0" opacity="0.06" />
+
+  <!-- House Body Base -->
+  <rect x="136" y="220" width="240" height="190" rx="20" fill="#FDFCF0" />
+
+  <!-- Roof with Polish Countryside Overhang -->
+  <polygon points="256,90 80,240 120,240 256,125 392,240 432,240" fill="url(#roofGrad)" />
+  
+  <!-- Chimney with gentle smoke -->
+  <rect x="330" y="120" width="40" height="70" rx="8" fill="url(#woodGrad)" />
+  <path d="M350 105 Q360 85 350 70 Q340 55 355 40" stroke="#FDFCF0" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.75" />
+
+  <!-- House Door -->
+  <path d="M226 310 C226 295 240 280 256 280 C272 280 286 295 286 310 L286 410 L226 410 Z" fill="url(#woodGrad)" />
+  <circle cx="274" cy="355" r="5" fill="#D97706" />
+
+  <!-- Cozy Windows -->
+  <rect x="160" y="270" width="45" height="55" rx="8" fill="#FEF3C7" stroke="#78350F" stroke-width="6" />
+  <line x1="182.5" y1="270" x2="182.5" y2="325" stroke="#78350F" stroke-width="4" />
+  <line x1="160" y1="297.5" x2="205" y2="297.5" stroke="#78350F" stroke-width="4" />
+
+  <rect x="307" y="270" width="45" height="55" rx="8" fill="#FEF3C7" stroke="#78350F" stroke-width="6" />
+  <line x1="329.5" y1="270" x2="329.5" y2="325" stroke="#78350F" stroke-width="4" />
+  <line x1="307" y1="297.5" x2="352" y2="297.5" stroke="#78350F" stroke-width="4" />
+
+  <!-- Checklist / Checkmark badge on bottom right -->
+  <circle cx="390" cy="380" r="50" fill="#2D4F1E" stroke="#FDFCF0" stroke-width="8" />
+  <path d="M368 380 L382 394 L412 364" fill="none" stroke="#FDFCF0" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

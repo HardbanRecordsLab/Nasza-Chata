@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Fredoka', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-sans: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --color-natural-bg: #FDFCF0;
+    --color-natural-primary: #2D4F1E;
+    --color-natural-amber: #D97706;
+    --color-natural-brown: #78350F;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #FDFCF0;
+    color: #2D4F1E;
+    margin: 0;
+    padding: 0;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Natural Tones Glass Panel */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(120, 53, 15, 0.1);
+}
+
+.glass-panel-dark {
+  background: rgba(45, 79, 30, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(120, 53, 15, 0.2);
+}
+
+.calendar-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.sketch-icon {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+/* Subtle hand-crafted animations */
+@keyframes flameFlicker {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.95;
+  }
+  25% {
+    transform: scale(1.08, 0.95) rotate(-2deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.96, 1.05) rotate(1.5deg);
+    opacity: 0.9;
+  }
+  75% {
+    transform: scale(1.04, 0.98) rotate(-1deg);
+    opacity: 1;
+  }
+}
+
+@keyframes grassSway {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(4deg) skewX(2deg);
+  }
+}
+
+@keyframes dripDrop {
+  0% {
+    transform: translateY(-2px);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(2px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(5px);
+    opacity: 0;
+  }
+}
+
+@keyframes basketSway {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  30% {
+    transform: rotate(3deg);
+  }
+  70% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes subtleFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.anim-flame {
+  animation: flameFlicker 2.4s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.anim-grass {
+  animation: grassSway 3.2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.anim-drip {
+  animation: dripDrop 1.8s ease-in-out infinite;
+}
+
+.anim-basket {
+  animation: basketSway 3s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+.anim-float {
+  animation: subtleFloat 3s ease-in-out infinite;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(120, 53, 15, 0.04);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(45, 79, 30, 0.25);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(45, 79, 30, 0.45);
+}
+
+

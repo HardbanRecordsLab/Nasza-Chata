@@ -1,0 +1,6 @@
+{
+  "name": "Nasza Chata",
+  "description": "Kalendarzowy planer domowych obowiązków, wydatków i zapasów dla rodziny w domu z ogrodem i piecem.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
