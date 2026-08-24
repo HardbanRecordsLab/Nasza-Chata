@@ -309,6 +309,10 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ onClose, taskToEdit 
                 <option value="dishes">🍽️ Naczynia i kuchnia</option>
                 <option value="laundry">🛏️ Pościel i pranie</option>
                 <option value="maintenance">🔧 Konserwacja i dom</option>
+                <option value="seasonal">🌸 Sezonowe</option>
+                <option value="occasional">🎉 Okazjonalne (święta, urodziny, goście)</option>
+                <option value="administrative">📑 Administracyjne (rachunki, dokumenty, urzędy)</option>
+                <option value="organizational">🧠 Organizacyjne (planowanie, podział)</option>
                 <option value="custom">✨ Inne</option>
               </select>
             </div>

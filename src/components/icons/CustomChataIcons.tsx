@@ -498,6 +498,9 @@ export function getTaskIcon(taskName: string, category: string, animate: boolean
     case 'laundry': return <BedIcon animate={animate} />;
     case 'seasonal': return <GrassIcon animate={animate} />;
     case 'maintenance': return <AxeIcon animate={animate} />;
+    case 'occasional': return <ShoppingBasketIcon animate={animate} />;
+    case 'administrative': return <AxeIcon animate={animate} />;
+    case 'organizational': return <ShoppingBasketIcon animate={animate} />;
     case 'cleaning': return <MopIcon animate={animate} />;
     default: return <ChataLogoIcon animate={animate} />;
   }

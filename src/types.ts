@@ -31,6 +31,9 @@ export type TaskCategory =
   | 'dishes'
   | 'laundry'
   | 'plants'
+  | 'occasional'
+  | 'administrative'
+  | 'organizational'
   | 'custom';
 
 export interface TaskDefinition {
