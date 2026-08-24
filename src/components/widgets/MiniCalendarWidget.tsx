@@ -15,6 +15,7 @@ import {
 import { pl } from 'date-fns/locale';
 import { useChata } from '../../context/ChataContext';
 import { getOccurrencesForDate } from '../../utils/recurrenceEngine';
+import { isPolishHoliday } from '../../utils/polishHolidays';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
 interface MiniCalendarWidgetProps {
@@ -83,6 +84,8 @@ export const MiniCalendarWidget: React.FC<MiniCalendarWidgetProps> = ({ onSelect
           const isCurrMonth = isSameMonth(day, currentDate);
           const isCurrentToday = isToday(day);
           const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+          const dayStr = format(day, 'yyyy-MM-dd');
+          const holiday = isPolishHoliday(dayStr);
 
           const dayOccurrences = getOccurrencesForDate(tasks, completions, day, {
             onlyScheduled: true,
@@ -97,9 +100,12 @@ export const MiniCalendarWidget: React.FC<MiniCalendarWidgetProps> = ({ onSelect
             <button
               key={day.toISOString()}
               onClick={() => onSelectDate?.(day)}
+              title={holiday ? `${holiday.emoji} ${holiday.name}` : undefined}
               className={`relative flex flex-col items-center py-1.5 rounded-lg transition-all group ${
                 !isCurrMonth
                   ? 'opacity-30'
+                  : holiday
+                  ? 'bg-red-50 ring-1 ring-red-200/60'
                   : isCurrentToday
                   ? 'bg-[#D97706]/10 ring-1 ring-[#D97706]/30'
                   : 'hover:bg-[#2D4F1E]/5'
@@ -109,6 +115,8 @@ export const MiniCalendarWidget: React.FC<MiniCalendarWidgetProps> = ({ onSelect
                 className={`text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full ${
                   isCurrentToday
                     ? 'bg-[#D97706] text-white'
+                    : holiday
+                    ? 'text-red-600'
                     : isWeekend && isCurrMonth
                     ? 'text-[#D97706]'
                     : 'text-zinc-600 group-hover:text-[#2D4F1E]'
@@ -116,6 +124,13 @@ export const MiniCalendarWidget: React.FC<MiniCalendarWidgetProps> = ({ onSelect
               >
                 {format(day, 'd')}
               </span>
+
+              {/* Holiday indicator */}
+              {holiday && isCurrMonth && (
+                <span className="text-[8px] leading-none -mt-0.5" title={holiday.name}>
+                  {holiday.emoji}
+                </span>
+              )}
 
               {/* Progress dots */}
               {totalCount > 0 && (

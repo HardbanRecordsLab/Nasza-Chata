@@ -17,6 +17,7 @@ import {
 import { pl } from 'date-fns/locale';
 import { useChata } from '../../context/ChataContext';
 import { getOccurrencesForDate } from '../../utils/recurrenceEngine';
+import { isPolishHoliday } from '../../utils/polishHolidays';
 import { TaskOccurrence, TaskDefinition } from '../../types';
 import { getTaskIcon } from '../icons/CustomChataIcons';
 import {
@@ -163,6 +164,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask }) => 
             const isSelected = isSameDay(day, selectedDate);
             const isCurrentToday = isToday(day);
             const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+            const dayStr = format(day, 'yyyy-MM-dd');
+            const holiday = isPolishHoliday(dayStr);
 
             const dayOccurrences = getOccurrencesForDate(tasks, completions, day, {
               onlyScheduled: true,
@@ -176,9 +179,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask }) => 
               <button
                 key={day.toISOString()}
                 onClick={() => setSelectedDate(day)}
+                title={holiday ? `${holiday.emoji} ${holiday.name}` : undefined}
                 className={`min-h-[80px] sm:min-h-[100px] p-2 sm:p-3 rounded-2xl text-left flex flex-col justify-between transition-all group relative ${
                   isSelected
                     ? 'bg-[#2D4F1E] shadow-md scale-[1.02] z-10 ring-4 ring-[#2D4F1E]/20'
+                    : holiday && isCurrMonth
+                    ? 'bg-red-50 border-2 border-red-200 hover:bg-red-100'
                     : isCurrentToday
                     ? 'bg-[#D97706]/10 border-2 border-[#D97706]/30 hover:bg-[#D97706]/20'
                     : isCurrMonth
@@ -192,6 +198,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask }) => 
                     className={`text-sm sm:text-base font-bold w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-display transition-colors ${
                       isSelected
                         ? 'bg-white text-[#2D4F1E] shadow-sm'
+                        : holiday && isCurrMonth
+                        ? 'text-red-600'
                         : isCurrentToday
                         ? 'bg-[#D97706] text-white shadow-sm'
                         : isWeekend && isCurrMonth
@@ -201,6 +209,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask }) => 
                   >
                     {format(day, 'd')}
                   </span>
+
+                  {holiday && isCurrMonth && (
+                    <span className="text-xs leading-none" title={holiday.name}>
+                      {holiday.emoji}
+                    </span>
+                  )}
 
                   {totalInDay > 0 && (
                     <div
