@@ -89,16 +89,6 @@ export async function uploadToBlob(
       const { url } = await res.json();
       return url;
     }
-    // Fallback: try legacy blob endpoint
-    const res2 = await fetch('/api/upload-blob', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: dataUrl, filename, folder, mimeType }),
-    });
-    if (res2.ok) {
-      const { url } = await res2.json();
-      return url;
-    }
   } catch (e) {
     console.error('uploadToBlob failed:', e);
   }

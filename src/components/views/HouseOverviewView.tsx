@@ -854,12 +854,12 @@ export const HouseOverviewView: React.FC = () => {
             </div>
 
             <a
-              href="/api/export?action=yearly-chronicle"
+              href="/api/export?action=yearly-chronicle&format=html"
               target="_blank"
               className="px-4 py-2 bg-[#D97706] hover:bg-[#b45309] text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-colors shadow-xs"
             >
               <Calendar className="w-4 h-4" />
-              <span>Pokaż kronikę roku</span>
+              <span>Drukuj kronikę roku</span>
             </a>
           </div>
         </div>
