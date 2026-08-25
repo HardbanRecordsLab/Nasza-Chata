@@ -254,3 +254,14 @@ export interface VisionScanResult {
   items: ScannedTaskProposal[];
   aiPowered: boolean;
 }
+
+export interface WeeklyPlan {
+  id: string; // YYYY-MM-DD (Monday of week)
+  weekStart: string; // YYYY-MM-DD Monday
+  weekEnd: string; // YYYY-MM-DD Sunday
+  assignments: Record<string, string | null>; // taskId -> profileId (override for this week)
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdById: string;
+}

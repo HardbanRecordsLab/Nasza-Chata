@@ -15,6 +15,7 @@ export interface DatabaseSchema {
   comments: any[];
   notifications: any;
   profiles?: any[];
+  weeklyPlans?: any[];
 }
 
 export interface PushSubscriptionRecord {
@@ -37,6 +38,7 @@ let memoryState: DatabaseSchema = {
   sosAlerts: [],
   comments: [],
   notifications: {},
+  weeklyPlans: [],
 };
 
 let memoryPushSubscriptions: PushSubscriptionRecord[] = [];
@@ -163,6 +165,7 @@ export async function saveDbState(incoming: Partial<DatabaseSchema>): Promise<Da
     comments: incoming.comments ?? memoryState.comments,
     notifications: incoming.notifications ?? memoryState.notifications,
     profiles: incoming.profiles ?? memoryState.profiles,
+    weeklyPlans: (incoming as any).weeklyPlans ?? (memoryState as any).weeklyPlans ?? [],
   };
 
   writeLocalJson(memoryState);

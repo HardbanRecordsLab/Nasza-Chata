@@ -15,6 +15,7 @@ import {
   InStoreCartItem,
   VisualZone,
   VisualEntry,
+  WeeklyPlan,
 } from '../types';
 import {
   INITIAL_PROFILES,
@@ -103,6 +104,13 @@ interface ChataContextType {
   addVisualEntry: (zoneId: string, entry: Omit<VisualEntry, 'id'>) => void;
   deleteVisualEntry: (zoneId: string, entryId: string) => void;
 
+  // Weekly Plans (admin tool)
+  weeklyPlans: WeeklyPlan[];
+  getWeeklyPlan: (weekStart: string) => WeeklyPlan | undefined;
+  saveWeeklyPlan: (plan: WeeklyPlan) => void;
+  setWeeklyAssignment: (weekStart: string, taskId: string, profileId: string | null) => void;
+  deleteWeeklyPlan: (weekStart: string) => void;
+
   // Feedback
   toasts: ToastMessage[];
   showToast: (title: string, message?: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
@@ -152,6 +160,7 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [comments, setComments] = useState<HouseComment[]>([]);
   const [notifications, setNotifications] = useState<Record<string, NotificationSetting>>({});
   const [visualZones, setVisualZones] = useState<VisualZone[]>([]);
+  const [weeklyPlans, setWeeklyPlans] = useState<WeeklyPlan[]>([]);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -185,6 +194,7 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (parsed.comments) setComments(parsed.comments);
         if (parsed.notifications) setNotifications(parsed.notifications);
         if (parsed.visualZones) setVisualZones(parsed.visualZones);
+        if (parsed.weeklyPlans) setWeeklyPlans(parsed.weeklyPlans);
       }
     } catch (e) {
       console.warn('LocalStorage load error:', e);
@@ -211,6 +221,7 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (data.comments) setComments(data.comments);
           if (data.notifications) setNotifications(data.notifications);
           if (data.visualZones) setVisualZones(data.visualZones);
+          if ((data as any).weeklyPlans) setWeeklyPlans((data as any).weeklyPlans);
         }
       })
       .catch(() => {
@@ -285,6 +296,7 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           comments,
           notifications,
           visualZones,
+          weeklyPlans,
         })
       );
     } catch {}
@@ -305,13 +317,14 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         comments,
         notifications,
         visualZones,
-      });
+        weeklyPlans,
+      } as any);
     }, 1500);
 
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
     };
-  }, [profiles, tasks, completions, expenses, shoppingItems, woodInventory, equipment, roomSnapshots, sosAlerts, comments, notifications, visualZones, persistState]);
+  }, [profiles, tasks, completions, expenses, shoppingItems, woodInventory, equipment, roomSnapshots, sosAlerts, comments, notifications, visualZones, weeklyPlans, persistState]);
 
   // Profile selection
   const selectProfile = (profile: Profile) => {
@@ -706,6 +719,55 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast('Usunięto wpis wizualny', '', 'info');
   };
 
+  // Weekly Plans (admin tool)
+  const getWeeklyPlan = useCallback((weekStart: string) => weeklyPlans.find(p => p.weekStart === weekStart), [weeklyPlans]);
+
+  const saveWeeklyPlan = useCallback((plan: WeeklyPlan) => {
+    setWeeklyPlans(prev => {
+      const idx = prev.findIndex(p => p.weekStart === plan.weekStart);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = { ...plan, updatedAt: new Date().toISOString() };
+        return copy;
+      }
+      return [...prev, plan];
+    });
+    showToast('Zapisano plan tygodniowy', `Tydzień od ${plan.weekStart}`, 'success');
+  }, [showToast]);
+
+  const setWeeklyAssignment = useCallback((weekStart: string, taskId: string, profileId: string | null) => {
+    setWeeklyPlans(prev => {
+      const existing = prev.find(p => p.weekStart === weekStart);
+      const now = new Date().toISOString();
+      if (existing) {
+        const updated: WeeklyPlan = {
+          ...existing,
+          assignments: { ...existing.assignments, [taskId]: profileId },
+          updatedAt: now,
+        };
+        return prev.map(p => p.weekStart === weekStart ? updated : p);
+      }
+      // create new plan for this week
+      const weekEndDate = new Date(weekStart);
+      weekEndDate.setDate(weekEndDate.getDate() + 6);
+      const newPlan: WeeklyPlan = {
+        id: weekStart,
+        weekStart,
+        weekEnd: weekEndDate.toISOString().split('T')[0],
+        assignments: { [taskId]: profileId },
+        createdAt: now,
+        updatedAt: now,
+        createdById: currentProfile.id,
+      };
+      return [...prev, newPlan];
+    });
+  }, [currentProfile.id]);
+
+  const deleteWeeklyPlan = useCallback((weekStart: string) => {
+    setWeeklyPlans(prev => prev.filter(p => p.weekStart !== weekStart));
+    showToast('Usunięto plan tygodniowy', weekStart, 'info');
+  }, [showToast]);
+
   return (
     <ChataContext.Provider
       value={{
@@ -755,6 +817,11 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteVisualZone,
         addVisualEntry,
         deleteVisualEntry,
+        weeklyPlans,
+        getWeeklyPlan,
+        saveWeeklyPlan,
+        setWeeklyAssignment,
+        deleteWeeklyPlan,
         toasts,
         showToast,
         removeToast,

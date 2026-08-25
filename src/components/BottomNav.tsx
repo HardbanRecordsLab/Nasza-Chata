@@ -1,14 +1,15 @@
 import React from 'react';
-import { Sparkles, Calendar, ShoppingBag, Home, PieChart, Layers } from 'lucide-react';
+import { Sparkles, Calendar, ShoppingBag, Home, PieChart, Layers, ClipboardList } from 'lucide-react';
 import { ChataStoveIcon } from './icons/CustomChataIcons';
 
-export type TabType = 'today' | 'calendar' | 'shopping' | 'house';
+export type TabType = 'today' | 'calendar' | 'shopping' | 'house' | 'plan';
 
 interface BottomNavProps {
   activeTab: TabType;
   onChangeTab: (tab: TabType) => void;
   pendingCountToday?: number;
   shoppingCount?: number;
+  isAdmin?: boolean;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
@@ -16,6 +17,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onChangeTab,
   pendingCountToday = 0,
   shoppingCount = 0,
+  isAdmin = false,
 }) => {
   const navItems = [
     {
@@ -42,6 +44,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       label: 'Nasza Chata',
       icon: <Home className="w-5 h-5" />,
     },
+    ...(isAdmin
+      ? [
+          {
+            id: 'plan' as TabType,
+            label: 'Plan Admina',
+            icon: <ClipboardList className="w-5 h-5" />,
+          },
+        ]
+      : []),
   ];
 
   return (

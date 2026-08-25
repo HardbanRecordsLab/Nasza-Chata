@@ -6,6 +6,7 @@ import { TodayView } from './components/views/TodayView';
 import { CalendarView } from './components/views/CalendarView';
 import { ShoppingView } from './components/views/ShoppingView';
 import { HouseOverviewView } from './components/views/HouseOverviewView';
+import { AdminPlanView } from './components/views/AdminPlanView';
 import { PinModal } from './components/modals/PinModal';
 import { SosModal } from './components/modals/SosModal';
 import { AddTaskModal } from './components/modals/AddTaskModal';
@@ -42,7 +43,7 @@ const MainApp: React.FC = () => {
     if (params.get('action') === 'sos') {
       setIsSosOpen(true);
     }
-    if (params.get('tab') && ['today', 'calendar', 'shopping', 'house'].includes(params.get('tab')!)) {
+    if (params.get('tab') && ['today', 'calendar', 'shopping', 'house', 'plan'].includes(params.get('tab')!)) {
       setActiveTab(params.get('tab') as TabType);
     }
   }, []);
@@ -132,6 +133,10 @@ const MainApp: React.FC = () => {
         {activeTab === 'house' && (
           <HouseOverviewView />
         )}
+
+        {activeTab === 'plan' && (
+          <AdminPlanView />
+        )}
       </main>
 
       {/* Bottom Sticky Navigation */}
@@ -140,6 +145,7 @@ const MainApp: React.FC = () => {
         onChangeTab={setActiveTab}
         pendingCountToday={pendingTodayCount}
         shoppingCount={pendingShoppingCount}
+        isAdmin={currentProfile.isAdmin || currentProfile.id === 'kamil'}
       />
 
       {/* Global Modals */}
