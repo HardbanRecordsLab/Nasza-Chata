@@ -29,6 +29,7 @@ const MainApp: React.FC = () => {
   const [isWidgetModalOpen, setIsWidgetModalOpen] = useState(false);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isWidgetOnlyMode, setIsWidgetOnlyMode] = useState(false);
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | undefined>(undefined);
 
   // Initialize service worker and check query params on mount
   useEffect(() => {
@@ -113,12 +114,14 @@ const MainApp: React.FC = () => {
             onOpenWidget={() => setIsWidgetModalOpen(true)}
             onOpenScanHandwritten={() => setIsScanModalOpen(true)}
             onChangeTab={setActiveTab}
+            onSelectDate={(date) => setCalendarSelectedDate(date)}
           />
         )}
 
         {activeTab === 'calendar' && (
           <CalendarView
             onOpenAddTask={() => setIsAddTaskOpen(true)}
+            initialDate={calendarSelectedDate}
           />
         )}
 

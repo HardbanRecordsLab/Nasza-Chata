@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useChata } from '../../context/ChataContext';
 import { Profile } from '../../types';
 import { ProfileAvatar } from '../common/ProfileAvatar';
+import { compressImage, uploadToBlob } from '../../utils/imageCompression';
 import { X, Camera, Upload, Trash2, ShieldCheck, UserCheck, Lock, Check } from 'lucide-react';
 
 interface EditProfilePhotoModalProps {
@@ -21,6 +22,7 @@ export const EditProfilePhotoModal: React.FC<EditProfilePhotoModalProps> = ({
   const [roleTitle, setRoleTitle] = useState<string>(targetProfile.roleTitle || '');
   const [pin, setPin] = useState<string>(targetProfile.pin || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -38,7 +40,7 @@ export const EditProfilePhotoModal: React.FC<EditProfilePhotoModalProps> = ({
     { label: 'Natura & Ogród', url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=300&auto=format&fit=crop&q=80' },
   ];
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -47,18 +49,42 @@ export const EditProfilePhotoModal: React.FC<EditProfilePhotoModalProps> = ({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setSelectedPhoto(reader.result as string);
-      showToast('Wczytano zdjęcie', 'Pamiętaj kliknąć "Zapisz zmiany".', 'info');
-    };
-    reader.readAsDataURL(file);
+    // If user picked a preset https URL, keep it as-is
+    setIsUploading(true);
+    try {
+      // Compress via canvas before upload
+      const compressed = await compressImage(file, 1024, 0.8);
+      // Upload to Blob immediately — show preview as Blob URL, save will use Blob URL
+      const blobUrl = await uploadToBlob(compressed, `avatar-${targetProfile.id}-${Date.now()}.jpg`, `avatars/${targetProfile.id}`, 'image/jpeg');
+      if (blobUrl) {
+        setSelectedPhoto(blobUrl);
+        showToast('Wgrano zdjęcie', 'Pamiętaj kliknąć "Zapisz zmiany".', 'success');
+      } else {
+        // Fallback: use compressed dataUrl locally
+        setSelectedPhoto(compressed);
+        showToast('Wczytano zdjęcie (lokalnie)', 'Pamiętaj kliknąć "Zapisz zmiany".', 'info');
+      }
+    } catch (err) {
+      console.error('Avatar upload error', err);
+      showToast('Błąd wgrywania', 'Spróbuj ponownie', 'error');
+    } finally {
+      setIsUploading(false);
+      // reset input so same file can be re-selected
+      e.target.value = '';
+    }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
+    let photoUrl = selectedPhoto || undefined;
+    // If photo is still a data URL (upload failed or offline), try one more time to upload before save
+    if (photoUrl && photoUrl.startsWith('data:image')) {
+      const compressed = await compressImage(photoUrl, 1024, 0.8);
+      const blobUrl = await uploadToBlob(compressed, `avatar-${targetProfile.id}-${Date.now()}.jpg`, `avatars/${targetProfile.id}`, 'image/jpeg');
+      if (blobUrl) photoUrl = blobUrl;
+    }
     updateProfile(targetProfile.id, {
-      photoUrl: selectedPhoto || undefined,
+      photoUrl,
       avatar: selectedAvatar,
       roleTitle: roleTitle.trim() || targetProfile.roleTitle,
       pin: pin.trim() || targetProfile.pin,
@@ -271,10 +297,17 @@ export const EditProfilePhotoModal: React.FC<EditProfilePhotoModalProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            disabled={isSaving}
-            className="flex-1 py-2.5 rounded-xl bg-[#2D4F1E] hover:bg-[#1f3715] text-[#FDFCF0] text-xs font-bold shadow-md transition-all active:scale-98"
+            disabled={isSaving || isUploading}
+            className="flex-1 py-2.5 rounded-xl bg-[#2D4F1E] hover:bg-[#1f3715] text-[#FDFCF0] text-xs font-bold shadow-md transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Zapisz zmiany
+            {isSaving || isUploading ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                {isUploading ? 'Wgrywanie...' : 'Zapisywanie...'}
+              </>
+            ) : (
+              'Zapisz zmiany'
+            )}
           </button>
         </div>
       </div>

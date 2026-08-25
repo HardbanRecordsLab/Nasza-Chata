@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { VisualZone, VisualEntry, RoomTag } from '../../types';
 import { useChata } from '../../context/ChataContext';
+import { isTaskScheduledOnDate } from '../../utils/recurrenceEngine';
 import {
   X,
   Camera,
@@ -133,13 +134,12 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
     }
   }, []);
 
-  // Take photo
+  // Take photo — capture is already compressed via canvas (1920px, jpeg 0.8)
   const takePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const video = videoRef.current;
 
-    // Resize to max 1920px on longest side for compression
     const maxDim = 1920;
     let w = video.videoWidth;
     let h = video.videoHeight;
@@ -160,12 +160,9 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
 
     if (currentAngleIdx < captureAngles.length - 1) {
       setCurrentAngleIdx(prev => prev + 1);
-    } else {
-      // All angles captured
-      stopCamera();
-      saveAllEntries();
     }
-  }, [currentAngleIdx, captureAngles, stopCamera]);
+    // No auto-save — user clicks „Zapisz" (avoids stale-closure race, lets user review)
+  }, [currentAngleIdx, captureAngles]);
 
   // Start video recording
   const startRecording = useCallback(() => {
@@ -220,33 +217,56 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
     stopCamera();
   }, [stopCamera]);
 
-  // Save all captured entries
-  const saveAllEntries = useCallback(async () => {
-    const angle = captureAngles[currentAngleIdx] || 'Zdjęcie';
+  // Save all captured entries — photos via Blob, video via Blob
+  const saveAllEntries = useCallback(async (
+    photosOverride?: { angle: string; dataUrl: string }[],
+    videoBlobOverride?: Blob | null,
+  ) => {
+    const photos = photosOverride ?? capturedPhotos;
+    const vBlob = videoBlobOverride !== undefined ? videoBlobOverride : videoBlob;
 
-    // Save photos
-    capturedPhotos.forEach(photo => {
+    // Upload photos to Blob (with compression already done via canvas)
+    for (const photo of photos) {
+      let mediaUrl = photo.dataUrl;
+      try {
+        const filename = `photo-${zone.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.jpg`;
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            file: photo.dataUrl,
+            filename,
+            folder: `visual-zones/${zone.id}`,
+            mimeType: 'image/jpeg',
+          }),
+        });
+        if (res.ok) {
+          const { url } = await res.json();
+          mediaUrl = url;
+        }
+      } catch (e) {
+        console.warn('Photo Blob upload failed, using dataUrl fallback', e);
+      }
       addVisualEntry(zone.id, {
         capturedAt: new Date().toISOString(),
         capturedById: currentProfile.id,
         capturedByName: currentProfile.name,
         mediaType: 'photo',
-        mediaUrl: photo.dataUrl,
+        mediaUrl,
         angleLabel: photo.angle,
       });
-    });
+    }
 
     // Upload video to Blob if any
-    if (videoBlob) {
+    if (vBlob) {
       try {
         const base64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(videoBlob);
+          reader.readAsDataURL(vBlob);
         });
-
         const filename = `video-${zone.id}-${Date.now()}.webm`;
-        const res = await fetch('/api/upload-blob', {
+        const res = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -256,7 +276,6 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
             mimeType: 'video/webm',
           }),
         });
-
         if (res.ok) {
           const { url } = await res.json();
           addVisualEntry(zone.id, {
@@ -269,8 +288,7 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
             angleLabel: captureAngles[0] || 'Wideo',
           });
         } else {
-          // Fallback to local blob URL if upload fails
-          const videoUrl = URL.createObjectURL(videoBlob);
+          const videoUrl = URL.createObjectURL(vBlob);
           addVisualEntry(zone.id, {
             capturedAt: new Date().toISOString(),
             capturedById: currentProfile.id,
@@ -282,7 +300,7 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
           });
         }
       } catch {
-        const videoUrl = URL.createObjectURL(videoBlob);
+        const videoUrl = URL.createObjectURL(vBlob);
         addVisualEntry(zone.id, {
           capturedAt: new Date().toISOString(),
           capturedById: currentProfile.id,
@@ -295,14 +313,13 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
       }
     }
 
-    // Reset capture state
     setCapturedPhotos([]);
     setVideoBlob(null);
     setVideoThumbnail(null);
     setCurrentAngleIdx(0);
     setView('timeline');
-    showToast('Zapisano wpisy wizualne', `${capturedPhotos.length + (videoBlob ? 1 : 0)} wpisów`, 'success');
-  }, [capturedPhotos, videoBlob, videoThumbnail, zone.id, currentAngleIdx, captureAngles, currentProfile, addVisualEntry, showToast]);
+    showToast('Zapisano wpisy wizualne', `${photos.length + (vBlob ? 1 : 0)} wpisów`, 'success');
+  }, [capturedPhotos, videoBlob, videoThumbnail, zone.id, captureAngles, currentProfile, addVisualEntry, showToast]);
 
   // Handle image click for hotspot
   const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
@@ -435,7 +452,7 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
         {/* Captured photos preview strip */}
         {capturedPhotos.length > 0 && (
           <div className="absolute bottom-32 left-0 right-0 z-20 px-4">
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 items-end">
               {capturedPhotos.map((p, i) => (
                 <div key={i} className="relative shrink-0">
                   <img src={p.dataUrl} alt={p.angle} className="w-16 h-16 rounded-xl object-cover border-2 border-emerald-400" />
@@ -444,7 +461,23 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
                   </span>
                 </div>
               ))}
+              <button
+                onClick={() => { stopCamera(); saveAllEntries(); }}
+                className="shrink-0 h-16 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg"
+              >
+                <Check className="w-4 h-4" /> Zapisz {capturedPhotos.length}
+              </button>
             </div>
+          </div>
+        )}
+        {videoBlob && (
+          <div className="absolute bottom-32 left-0 right-0 z-20 px-4 flex justify-center">
+            <button
+              onClick={() => { stopCamera(); saveAllEntries(); }}
+              className="px-5 py-2.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold flex items-center gap-2 shadow-xl"
+            >
+              <Check className="w-4 h-4" /> Zapisz wideo
+            </button>
           </div>
         )}
       </div>
@@ -529,27 +562,51 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
             <img src={selectedEntry.mediaUrl} alt="" className="w-full h-full object-contain" />
           )}
 
-          {/* Hotspot tags overlay */}
-          {selectedEntry.tags?.map((tag, idx) => (
-            <div
-              key={tag.id}
-              className="absolute w-8 h-8 -ml-4 -mt-4 rounded-full group"
-              style={{ left: `${tag.x}%`, top: `${tag.y}%` }}
-            >
-              <div className="absolute inset-0 bg-white/20 rounded-full animate-ping" />
-              <div className="relative w-6 h-6 bg-emerald-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white text-[10px] font-black">
-                {idx + 1}
+          {/* Hotspot tags overlay — dynamic color via task status */}
+          {selectedEntry.tags?.map((tag, idx) => {
+            let tagColor = 'bg-emerald-500'; // default: no task linked
+            let tagTooltip = tag.label;
+            if (tag.taskId) {
+              const linkedTask = tasks.find(t => t.id === tag.taskId);
+              if (linkedTask) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const isCompletedToday = completions.some(
+                  c => c.taskId === tag.taskId && c.completedAt && c.completedAt.startsWith(todayStr)
+                );
+                const isScheduledToday = isTaskScheduledOnDate(linkedTask, new Date());
+                if (isCompletedToday) {
+                  tagColor = 'bg-emerald-500';
+                  tagTooltip = `${tag.label} ✓`;
+                } else if (isScheduledToday) {
+                  tagColor = 'bg-amber-500';
+                  tagTooltip = `${tag.label} — do zrobienia`;
+                } else {
+                  tagColor = 'bg-zinc-400';
+                  tagTooltip = `${tag.label} — niezaplanowane`;
+                }
+              }
+            }
+            return (
+              <div
+                key={tag.id}
+                className="absolute w-8 h-8 -ml-4 -mt-4 rounded-full group"
+                style={{ left: `${tag.x}%`, top: `${tag.y}%` }}
+              >
+                <div className={`absolute inset-0 ${tagColor}/30 rounded-full animate-ping`} />
+                <div className={`relative w-6 h-6 ${tagColor} rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white text-[10px] font-black`}>
+                  {idx + 1}
+                </div>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white/95 text-zinc-900 px-3 py-2 rounded-2xl shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity w-48 z-20">
+                  <div className="font-bold text-sm">{tagTooltip}</div>
+                  {tag.taskId && (
+                    <div className={`text-[10px] mt-1 ${tagColor === 'bg-emerald-500' ? 'text-emerald-600' : tagColor === 'bg-amber-500' ? 'text-amber-600' : 'text-zinc-500'}`}>
+                      Powiązane z zadaniem
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white/95 text-zinc-900 px-3 py-2 rounded-2xl shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity w-48 z-20">
-                <div className="font-bold text-sm">{tag.label}</div>
-                {tag.taskId && (
-                  <div className="text-[10px] text-emerald-600 mt-1">
-                    Powiązane z zadaniem
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Add hotspot button */}
           <div className="absolute bottom-4 right-4 z-10">

@@ -35,13 +35,22 @@ import { ProofModal } from '../modals/ProofModal';
 
 interface CalendarViewProps {
   onOpenAddTask: () => void;
+  initialDate?: Date;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask, initialDate }) => {
   const { tasks, completions, currentProfile, toggleTaskCompletion, showToast } = useChata();
 
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [currentDate, setCurrentDate] = useState<Date>(initialDate || new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(initialDate || new Date());
+
+  // Sync when App.tsx passes a new initialDate (e.g. click in MiniCalendarWidget)
+  React.useEffect(() => {
+    if (initialDate) {
+      setCurrentDate(initialDate);
+      setSelectedDate(initialDate);
+    }
+  }, [initialDate?.getTime()]);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [selectedOccurrence, setSelectedOccurrence] = useState<TaskOccurrence | null>(null);
   const [proofOccurrence, setProofOccurrence] = useState<TaskOccurrence | null>(null);

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Camera, Video, X, Check, Eye, Trash2, ArrowLeftRight } from 'lucide-react';
 import { TaskDefinition, TaskOccurrence } from '../../types';
 import { useChata } from '../../context/ChataContext';
+import { compressImage } from '../../utils/imageCompression';
 
 interface ProofModalProps {
   occurrence: TaskOccurrence;
@@ -16,32 +17,79 @@ export const ProofModal: React.FC<ProofModalProps> = ({ occurrence, onClose }) =
   const [note, setNote] = useState<string>(occurrence.completion?.proofNote || '');
   const [sliderPos, setSliderPos] = useState(50);
   const [isComparing, setIsComparing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'before' | 'after') => {
+  const uploadToBlob = useCallback(async (dataUrl: string, filename: string, folder: string, mimeType: string): Promise<string | null> => {
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: dataUrl, filename, folder, mimeType }),
+      });
+      if (res.ok) {
+        const { url } = await res.json();
+        return url;
+      }
+    } catch (err) {
+      console.error('Blob upload failed:', err);
+    }
+    return null;
+  }, []);
+
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>, target: 'before' | 'after') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check size limit (15MB)
     if (file.size > 15 * 1024 * 1024) {
       showToast('Plik za duży', 'Maksymalny rozmiar zdjęcia/wideo to 15MB.', 'error');
+      e.target.value = '';
       return;
     }
 
     const isVid = file.type.startsWith('video');
     if (isVid) setProofType('video');
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      if (target === 'before') {
-        setBeforeUrl(result);
+    setIsUploading(true);
+    showToast('Przesyłanie...', 'Wgrywanie pliku na serwer', 'info');
+
+    try {
+      // Compress images via canvas before upload
+      let dataUrl: string;
+      let mimeType = file.type;
+      if (!isVid) {
+        dataUrl = await compressImage(file, 1920, 0.8);
+        mimeType = 'image/jpeg';
       } else {
-        setAfterUrl(result);
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result as string);
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
       }
-      showToast('Wczytano dowód', `Dodano plik ${target === 'before' ? 'PRZED' : 'PO'}.`, 'info');
-    };
-    reader.readAsDataURL(file);
-  };
+
+      const ext = isVid ? (file.type.split('/')[1] || 'webm') : 'jpg';
+      const filename = `proof-${occurrence.task.id}-${target}-${Date.now()}.${ext}`;
+      const blobUrl = await uploadToBlob(dataUrl, filename, `proof/${occurrence.task.id}`, mimeType);
+
+      if (blobUrl) {
+        if (target === 'before') setBeforeUrl(blobUrl);
+        else setAfterUrl(blobUrl);
+        showToast('Wczytano dowód', `Dodano plik ${target === 'before' ? 'PRZED' : 'PO'}.`, 'success');
+      } else {
+        // Fallback to compressed dataUrl
+        if (target === 'before') setBeforeUrl(dataUrl);
+        else setAfterUrl(dataUrl);
+        showToast('Wczytano dowód (lokalnie)', `Dodano plik ${target === 'before' ? 'PRZED' : 'PO'}.`, 'info');
+      }
+    } catch (err) {
+      console.error('Proof upload error', err);
+      showToast('Błąd wgrywania', 'Spróbuj ponownie', 'error');
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  }, [uploadToBlob, occurrence.task.id, showToast]);
 
   const handleSaveAndComplete = () => {
     toggleTaskCompletion(occurrence.task.id, new Date(occurrence.date), {
@@ -83,7 +131,7 @@ export const ProofModal: React.FC<ProofModalProps> = ({ occurrence, onClose }) =
           <div className="bg-white border-2 border-dashed border-[#78350F]/20 rounded-2xl p-3 text-center flex flex-col items-center justify-center min-h-[160px] relative overflow-hidden group">
             {beforeUrl ? (
               <div className="w-full h-full relative">
-                {proofType === 'video' && beforeUrl.startsWith('data:video') ? (
+                {proofType === 'video' ? (
                   <video src={beforeUrl} controls className="w-full h-36 object-cover rounded-xl" />
                 ) : (
                   <img src={beforeUrl} alt="Przed" className="w-full h-36 object-cover rounded-xl shadow-xs" />
@@ -119,7 +167,7 @@ export const ProofModal: React.FC<ProofModalProps> = ({ occurrence, onClose }) =
           <div className="bg-white border-2 border-dashed border-[#2D4F1E]/30 rounded-2xl p-3 text-center flex flex-col items-center justify-center min-h-[160px] relative overflow-hidden group">
             {afterUrl ? (
               <div className="w-full h-full relative">
-                {proofType === 'video' && afterUrl.startsWith('data:video') ? (
+                {proofType === 'video' ? (
                   <video src={afterUrl} controls className="w-full h-36 object-cover rounded-xl" />
                 ) : (
                   <img src={afterUrl} alt="Po" className="w-full h-36 object-cover rounded-xl shadow-xs" />
@@ -214,10 +262,20 @@ export const ProofModal: React.FC<ProofModalProps> = ({ occurrence, onClose }) =
           </button>
           <button
             onClick={handleSaveAndComplete}
-            className="flex-2 py-3 px-4 rounded-xl bg-[#2D4F1E] hover:bg-[#1f3715] text-[#FDFCF0] font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
+            disabled={isUploading}
+            className="flex-2 py-3 px-4 rounded-xl bg-[#2D4F1E] hover:bg-[#1f3715] text-[#FDFCF0] font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Check className="w-4 h-4" />
-            Zapisz dowód i odhacz
+            {isUploading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-[#FDFCF0]/30 border-t-[#FDFCF0] rounded-full animate-spin" />
+                Przesyłanie...
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                Zapisz dowód i odhacz
+              </>
+            )}
           </button>
         </div>
       </div>

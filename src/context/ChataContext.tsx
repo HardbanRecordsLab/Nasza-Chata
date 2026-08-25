@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import {
   Profile,
@@ -244,36 +244,73 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [roomSnapshots]);
 
-  // Save to local storage and sync to server
+  // Save to local storage immediately, sync to server with debounce (avoids MBs of base64 on every click)
   const persistState = useCallback((stateUpdate: any) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stateUpdate));
-      fetch('/api/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(stateUpdate),
-      }).catch(() => {});
     } catch (e) {
-      console.warn('Persistence error:', e);
+      console.warn('LocalStorage persistence error:', e);
     }
+    // fire-and-forget server sync (debounced by caller)
+    fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stateUpdate),
+    }).catch(() => {});
   }, []);
 
-  // Trigger sync whenever core state changes
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstPersistRef = useRef(true);
+
+  // Trigger sync whenever core state changes — debounced 1.5s, skip initial mount
   useEffect(() => {
-    persistState({
-      profiles,
-      tasks,
-      completions,
-      expenses,
-      shoppingItems,
-      woodInventory,
-      equipment,
-      roomSnapshots,
-      sosAlerts,
-      comments,
-      notifications,
-      visualZones,
-    });
+    if (isFirstPersistRef.current) {
+      isFirstPersistRef.current = false;
+      return;
+    }
+    // Immediate localStorage write for offline safety
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          profiles,
+          tasks,
+          completions,
+          expenses,
+          shoppingItems,
+          woodInventory,
+          equipment,
+          roomSnapshots,
+          sosAlerts,
+          comments,
+          notifications,
+          visualZones,
+        })
+      );
+    } catch {}
+
+    // Debounced server sync
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = setTimeout(() => {
+      persistState({
+        profiles,
+        tasks,
+        completions,
+        expenses,
+        shoppingItems,
+        woodInventory,
+        equipment,
+        roomSnapshots,
+        sosAlerts,
+        comments,
+        notifications,
+        visualZones,
+      });
+    }, 1500);
+
+    return () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    };
   }, [profiles, tasks, completions, expenses, shoppingItems, woodInventory, equipment, roomSnapshots, sosAlerts, comments, notifications, visualZones, persistState]);
 
   // Profile selection

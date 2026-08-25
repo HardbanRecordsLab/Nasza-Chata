@@ -39,6 +39,7 @@ interface TodayViewProps {
   onOpenWidget?: () => void;
   onOpenScanHandwritten?: () => void;
   onChangeTab?: (tab: 'today' | 'calendar' | 'shopping' | 'house') => void;
+  onSelectDate?: (date: Date) => void;
 }
 
 export const TodayView: React.FC<TodayViewProps> = ({
@@ -49,6 +50,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
   onOpenWidget,
   onOpenScanHandwritten,
   onChangeTab,
+  onSelectDate,
 }) => {
   const {
     currentProfile,
@@ -324,9 +326,8 @@ export const TodayView: React.FC<TodayViewProps> = ({
       {/* Mini Calendar Widget */}
       <MiniCalendarWidget
         onSelectDate={(date) => {
-          if (onChangeTab) {
-            onChangeTab('calendar');
-          }
+          onSelectDate?.(date);
+          onChangeTab?.('calendar');
         }}
       />
 
