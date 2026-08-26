@@ -25,6 +25,7 @@ import {
   ShoppingBag,
   Receipt,
   DollarSign,
+  Crown,
 } from 'lucide-react';
 import { MiniCalendarWidget } from '../widgets/MiniCalendarWidget';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
@@ -38,7 +39,7 @@ interface TodayViewProps {
   onOpenNotifications?: () => void;
   onOpenWidget?: () => void;
   onOpenScanHandwritten?: () => void;
-  onChangeTab?: (tab: 'today' | 'calendar' | 'shopping' | 'house') => void;
+  onChangeTab?: (tab: 'today' | 'calendar' | 'shopping' | 'house' | 'plan') => void;
   onSelectDate?: (date: Date) => void;
 }
 
@@ -323,6 +324,35 @@ export const TodayView: React.FC<TodayViewProps> = ({
         </button>
       </div>
 
+      {/* Panel Wspólny vs Zarządzanie — entry points */}
+      {isAdmin ? (
+        <button
+          onClick={() => onChangeTab?.('plan')}
+          className="w-full bg-gradient-to-br from-[#2D4F1E] to-[#1a3a12] rounded-[24px] p-4 border border-[#1f3715] shadow-md flex items-center justify-between text-left hover:shadow-lg hover:scale-[1.01] transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-400 text-[#2D4F1E] flex items-center justify-center font-black shadow-sm">
+              <Crown className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white flex items-center gap-2">
+                Panel Zarządzania <span className="text-[10px] bg-amber-400 text-[#2D4F1E] px-1.5 py-0.5 rounded-full">ADMIN</span>
+              </div>
+              <div className="text-[11px] text-white/70">Przydziały osób • Plan tygodniowy z drukiem • Sprzątanie na tydzień</div>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-white/60 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+        </button>
+      ) : (
+        <div className="bg-white rounded-[24px] p-4 border border-[#78350F]/10 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#FDFCF0] border border-[#78350F]/10 flex items-center justify-center text-xl">🏡</div>
+          <div>
+            <div className="text-sm font-bold text-[#2D4F1E]">Panel Wspólny — Nasza Chata</div>
+            <div className="text-[11px] text-[#78350F]/70">Wspólne zadania, kalendarz i zakupy dla całej rodziny. Zarządzanie (przydziały) — tylko Kamil.</div>
+          </div>
+        </div>
+      )}
+
       {/* Mini Calendar Widget */}
       <MiniCalendarWidget
         onSelectDate={(date) => {
@@ -339,7 +369,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
           </div>
           <div>
             <h4 className="text-sm font-bold text-[#2D4F1E]">
-              Asystent Domowy Gemini 3.7 Flash
+              Asystent Domowy Gemini 2.0 Flash
             </h4>
             <p className="text-xs text-[#78350F]/70">
               Zapytaj o stan drewna, serwis pieca, przepisy lub podział prac.

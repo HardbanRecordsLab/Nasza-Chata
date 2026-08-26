@@ -3,6 +3,8 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { getDbState } from '../server/db';
 import { handleScanHandwritten } from '../server/handlers/scan-handwritten';
 
+const GEMINI_MODEL = 'gemini-2.0-flash';
+
 let aiClient: GoogleGenAI | null = null;
 function getAI(): GoogleGenAI | null {
   if (!aiClient && process.env.GEMINI_API_KEY) {
@@ -65,7 +67,7 @@ STAN DOMU:
 
 Wiadomość: ${message}`;
 
-  const response = await ai.models.generateContent({ model: 'gemini-3.7-flash', contents: contextPrompt });
+  const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents: contextPrompt });
   return res.status(200).json({ reply: response.text || 'Wszystko w porządku!' });
 }
 
@@ -99,7 +101,7 @@ Dla każdego zadania: name, category, frequency, room, suggestedAssignee, estima
 Zwróć JSON zgodny ze schematem.`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.7-flash',
+    model: GEMINI_MODEL,
     contents: [
       { inlineData: { mimeType: detectedMime, data: cleanBase64 } },
       { text: promptText },

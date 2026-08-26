@@ -1,5 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 
+const GEMINI_MODEL = 'gemini-2.0-flash';
+
 let aiClient: GoogleGenAI | null = null;
 
 function getAI(): GoogleGenAI | null {
@@ -47,7 +49,7 @@ export async function handleScanHandwritten(body: ScanHandwrittenRequest) {
 Zwróć wyłącznie poprawny obiekt JSON: {"items": [{"name": string, "category": string, "frequency": string, "room": string}]}`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.7-flash',
+    model: GEMINI_MODEL,
     contents: [
       {
         inlineData: {
@@ -150,7 +152,7 @@ INSTRUKCJA ANALIZY:
 
   const { Type } = await import('@google/genai');
   const response = await ai.models.generateContent({
-    model: 'gemini-3.7-flash',
+    model: GEMINI_MODEL,
     contents: [
       {
         inlineData: { mimeType: detectedMime, data: cleanBase64 },

@@ -83,7 +83,7 @@ export async function uploadToBlob(
     const res = await fetch('/api/upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: dataUrl, dataUrl, filename, folder, mimeType }),
+      body: JSON.stringify({ file: dataUrl, filename, folder, mimeType }),
     });
     if (res.ok) {
       const { url } = await res.json();

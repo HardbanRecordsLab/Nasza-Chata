@@ -263,6 +263,24 @@ export const HouseOverviewView: React.FC = () => {
         </div>
       </div>
 
+      {/* Panel Wspólny / Zarządzania — discoverability */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex items-center gap-2 text-[11px] bg-white border border-[#78350F]/10 rounded-full px-3 py-1.5 shadow-xs">
+          <Home className="w-3.5 h-3.5 text-[#2D4F1E]" />
+          <span className="font-bold text-[#2D4F1E]">Panel Wspólny</span>
+          <span className="text-[#78350F]/60 hidden sm:inline">— pokoje & ogród (wszyscy, podgląd)</span>
+        </div>
+        {(currentProfile.isAdmin || currentProfile.id === 'kamil') ? (
+          <a href="?tab=plan" className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-[#2D4F1E] text-white px-3 py-1.5 rounded-full hover:bg-[#1f3715] transition-colors shadow-xs">
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-300" /> Panel Zarządzania → przydziały & plan tygodniowy
+          </a>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-[11px] bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-full">
+            <ShieldCheck className="w-3.5 h-3.5" /> Zarządzanie — tylko Kamil (admin)
+          </span>
+        )}
+      </div>
+
       {/* SECTION 1: WOOD INVENTORY & STOVE */}
       {activeSection === 'wood' && (
         <div className="space-y-4">

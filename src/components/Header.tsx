@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useChata } from '../context/ChataContext';
 import { ChataLogoIcon } from './icons/CustomChataIcons';
-import { AlertTriangle, Plus, Bell, Smartphone, Camera, User, ChevronDown, Sparkles, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Plus, Bell, Smartphone, Camera, User, ChevronDown, Sparkles, ShieldCheck, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { getNotificationPermissionStatus } from '../utils/notificationService';
@@ -151,6 +151,18 @@ export const Header: React.FC<HeaderProps> = ({
               <Camera className="w-3 h-3 text-[#78350F]/50 group-hover:text-[#D97706]" />
             </p>
           </button>
+
+          {/* Panel Zarządzania — tylko admin, widoczny w headerze */}
+          {isAdmin && (
+            <a
+              href="?tab=plan"
+              className="hidden sm:inline-flex px-3 py-1.5 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs items-center gap-1.5 shadow-xs"
+              title="Panel Zarządzania — przydziały i plan tygodniowy"
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              <span>Zarządzanie</span>
+            </a>
+          )}
 
           {/* SOS Button */}
           <button

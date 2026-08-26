@@ -22,7 +22,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const navItems = [
     {
       id: 'today' as TabType,
-      label: 'Dashboard',
+      label: 'Wspólny',
       icon: <Layers className="w-5 h-5" />,
       badge: pendingCountToday > 0 ? pendingCountToday : undefined,
       badgeColor: 'bg-[#D97706]',
@@ -34,25 +34,23 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     },
     {
       id: 'shopping' as TabType,
-      label: 'Zakupy & Koszyk',
+      label: 'Zakupy',
       icon: <ShoppingBag className="w-5 h-5" />,
       badge: shoppingCount > 0 ? shoppingCount : undefined,
       badgeColor: 'bg-[#2D4F1E]',
     },
     {
       id: 'house' as TabType,
-      label: 'Nasza Chata',
+      label: 'Dom',
       icon: <Home className="w-5 h-5" />,
     },
-    ...(isAdmin
-      ? [
-          {
-            id: 'plan' as TabType,
-            label: 'Plan Admina',
-            icon: <ClipboardList className="w-5 h-5" />,
-          },
-        ]
-      : []),
+    {
+      id: 'plan' as TabType,
+      label: 'Zarządzanie',
+      icon: isAdmin ? <ClipboardList className="w-5 h-5" /> : <ClipboardList className="w-5 h-5 opacity-60" />,
+      badge: !isAdmin ? '🔒' : undefined,
+      badgeColor: 'bg-amber-600',
+    },
   ];
 
   return (
