@@ -62,6 +62,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
     sosAlerts,
     shoppingItems,
     expenses,
+    visualZones,
     toggleTaskCompletion,
     resolveSosAlert,
     assignTask,
@@ -352,6 +353,61 @@ export const TodayView: React.FC<TodayViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Przestrzenne pomieszczenia — wejście (Panel Wspólny) */}
+      <div className="bg-white rounded-[24px] border border-[#78350F]/10 shadow-xs overflow-hidden">
+        <div className="p-4 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-[#2D4F1E] flex items-center gap-2">
+              <span className="w-8 h-8 rounded-xl bg-[#2D4F1E]/10 flex items-center justify-center text-[#2D4F1E]">🏠</span>
+              Pomieszczenia przestrzennie — wejdź
+            </h3>
+            <p className="text-[11px] text-[#78350F]/70">Dotknij pokoju → zobacz zdjęcia/wideo w czasie, porównanie, hotspoty. W Panelu Wspólnym — podgląd, w Zarządzaniu — dodawanie.</p>
+          </div>
+          <button onClick={() => onChangeTab?.('house')} className="hidden sm:inline-flex px-3 py-1.5 bg-[#2D4F1E] text-white rounded-full text-xs font-bold">
+            Dom → Wizualizacja
+          </button>
+        </div>
+        {visualZones.length === 0 ? (
+          <div className="px-4 pb-4">
+            <div className="rounded-2xl border-2 border-dashed border-[#78350F]/15 p-6 text-center bg-[#FDFCF0]/40">
+              <div className="text-2xl mb-1">📸</div>
+              <div className="text-xs font-bold text-[#2D4F1E]">Brak stref — dodaj Salon, Kuchnię, Ogród w Panelu Zarządzania</div>
+              <div className="text-[11px] text-[#78350F]/60 mt-1">Potem każdy domownik wejdzie w pokój i zobaczy przestrzennie.</div>
+              {isAdmin && (
+                <button onClick={() => onChangeTab?.('plan')} className="mt-3 px-3 py-1.5 bg-[#D97706] text-white rounded-full text-xs font-bold">Przejdź do Zarządzania → Wizualizacja</button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {visualZones.slice(0, 4).map(zone => {
+              const latest = zone.entries[zone.entries.length - 1];
+              const thumb = latest?.thumbnailUrl || latest?.mediaUrl;
+              return (
+                <button
+                  key={zone.id}
+                  onClick={() => onChangeTab?.('house')}
+                  className="rounded-2xl overflow-hidden border border-[#78350F]/10 bg-[#FDFCF0] hover:border-[#D97706]/40 text-left group"
+                >
+                  <div className="h-[90px] bg-white overflow-hidden relative">
+                    {thumb ? <img src={thumb} alt={zone.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="w-full h-full flex items-center justify-center text-xl">🏡</div>}
+                    <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded-full">{zone.entries.length} wpisów</span>
+                  </div>
+                  <div className="p-2">
+                    <div className="text-xs font-bold truncate">{zone.name}</div>
+                    <div className="text-[10px] text-[#78350F]/60">{zone.zoneType === 'garden' ? 'Ogród' : 'Pomieszczenie'} • Wejdź →</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <div className="px-4 pb-3 flex gap-2">
+          <button onClick={() => onChangeTab?.('house')} className="flex-1 py-2 bg-[#FDFCF0] border border-[#78350F]/10 rounded-xl text-xs font-bold">Zobacz wszystkie w Domu</button>
+          {isAdmin && <button onClick={() => onChangeTab?.('plan')} className="flex-1 py-2 bg-[#2D4F1E] text-white rounded-xl text-xs font-bold">Zarządzanie → Wizualizacja</button>}
+        </div>
+      </div>
 
       {/* Mini Calendar Widget */}
       <MiniCalendarWidget

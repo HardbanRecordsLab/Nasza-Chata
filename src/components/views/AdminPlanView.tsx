@@ -22,10 +22,18 @@ import {
   AlertCircle,
   Copy,
   Trash2,
+  Camera,
+  Home,
+  TreePine,
+  Layers,
+  Plus,
+  Eye,
+  Video,
 } from 'lucide-react';
 import { ProfileAvatar } from '../common/ProfileAvatar';
+import { VisualZoneModal } from '../modals/VisualZoneModal';
 
-type InnerTab = 'assign' | 'weekly';
+type InnerTab = 'assign' | 'weekly' | 'visual';
 
 const CATEGORY_OPTIONS: { id: TaskCategory | 'all'; label: string }[] = [
   { id: 'all', label: 'Wszystkie' },
@@ -66,6 +74,9 @@ export const AdminPlanView: React.FC = () => {
     setWeeklyAssignment,
     saveWeeklyPlan,
     deleteWeeklyPlan,
+    visualZones,
+    addVisualZone,
+    deleteVisualZone,
     showToast,
   } = useChata();
 
@@ -197,6 +208,21 @@ export const AdminPlanView: React.FC = () => {
     }
   };
 
+  // --- TAB 3: wizualizacja przestrzenna ---
+  const [selectedVisualZone, setSelectedVisualZone] = useState<any | null>(null);
+  const [isAddingZone, setIsAddingZone] = useState(false);
+  const [newZoneName, setNewZoneName] = useState('');
+  const [newZoneType, setNewZoneType] = useState<'room' | 'garden' | 'utility'>('room');
+  const [visualFilter, setVisualFilter] = useState<'all' | 'room' | 'garden'>('all');
+
+  const HOUSE_FLOORS = [
+    { name: 'Parter', icon: Home, rooms: ['Salon', 'Kuchnia', 'Łazienka', 'Przedpokój', 'Kotłownia', 'Ganek'] },
+    { name: 'Poddasze', icon: Layers, rooms: ['Sypialnia', 'Pokój Olivii', 'Klatka schodowa', 'Garderoba'] },
+    { name: 'Ogród & obejście', icon: TreePine, rooms: ['Ogród', 'Taras', 'Drewutnia', 'Altanka', 'Szklarnia'] },
+  ];
+
+  const filteredVisualZones = visualFilter === 'all' ? visualZones : visualZones.filter(z => z.zoneType === visualFilter);
+
   if (!isAdmin) {
     return (
       <div className="max-w-2xl mx-auto py-12 text-center">
@@ -243,19 +269,25 @@ export const AdminPlanView: React.FC = () => {
         </div>
       </div>
 
-      {/* Inner tabs */}
-      <div className="flex gap-2 p-1 bg-white rounded-2xl border border-[#78350F]/10 w-fit shadow-xs no-print">
+      {/* Inner tabs — Wspólny vs Zarządzanie + Wizualizacja */}
+      <div className="flex gap-2 p-1 bg-white rounded-2xl border border-[#78350F]/10 w-fit shadow-xs no-print overflow-x-auto">
         <button
           onClick={() => setInnerTab('assign')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors ${innerTab === 'assign' ? 'bg-[#2D4F1E] text-white shadow-sm' : 'text-[#78350F]/70 hover:bg-[#78350F]/5'}`}
+          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${innerTab === 'assign' ? 'bg-[#2D4F1E] text-white shadow-sm' : 'text-[#78350F]/70 hover:bg-[#78350F]/5'}`}
         >
-          <Users className="w-4 h-4" /> Osoby odpowiedzialne
+          <Users className="w-4 h-4" /> Osoby
         </button>
         <button
           onClick={() => setInnerTab('weekly')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors ${innerTab === 'weekly' ? 'bg-[#2D4F1E] text-white shadow-sm' : 'text-[#78350F]/70 hover:bg-[#78350F]/5'}`}
+          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${innerTab === 'weekly' ? 'bg-[#2D4F1E] text-white shadow-sm' : 'text-[#78350F]/70 hover:bg-[#78350F]/5'}`}
         >
-          <CalendarRange className="w-4 h-4" /> Plan na tydzień
+          <CalendarRange className="w-4 h-4" /> Plan
+        </button>
+        <button
+          onClick={() => setInnerTab('visual')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${innerTab === 'visual' ? 'bg-[#2D4F1E] text-white shadow-sm' : 'text-[#78350F]/70 hover:bg-[#78350F]/5'}`}
+        >
+          <Camera className="w-4 h-4" /> Wizualizacja
         </button>
       </div>
 
@@ -488,6 +520,164 @@ export const AdminPlanView: React.FC = () => {
               <Printer className="w-4 h-4" /> Drukuj plan tygodnia (dodatkowo)
             </button>
           </div>
+        </div>
+      )}
+
+      {innerTab === 'visual' && (
+        <div className="space-y-4">
+          {/* Wizualizacja header — Panel Zarządzania + Wspólny */}
+          <div className="bg-white rounded-[24px] border border-[#78350F]/10 p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#2D4F1E] flex items-center gap-2">
+                <Camera className="w-4 h-4 text-[#D97706]" /> Przestrzenna wizualizacja — pomieszczenia jak w domu
+              </h3>
+              <p className="text-[11px] text-[#78350F]/70">Wejdź w pokój → zobacz oś czasu zdjęć/wideo, porównaj „miesiąc temu vs dziś”, dodaj hotspoty. <b>Panel Wspólny</b> = podgląd dla wszystkich, <b>Zarządzanie</b> = dodawanie/edycja stref.</p>
+            </div>
+            <div className="flex gap-2">
+              <div className="flex gap-1 bg-[#78350F]/5 p-1 rounded-full border border-[#78350F]/10">
+                {(['all','room','garden'] as const).map(f => (
+                  <button key={f} onClick={() => setVisualFilter(f)} className={`px-3 py-1 rounded-full text-[11px] font-bold ${visualFilter===f ? 'bg-[#2D4F1E] text-white' : 'text-[#78350F]/70'}`}>{f==='all'?'Wszystkie':f==='room'?'Pomieszczenia':'Ogród'}</button>
+                ))}
+              </div>
+              <button onClick={() => setIsAddingZone(true)} className="px-3.5 py-2 bg-[#2D4F1E] text-white rounded-xl text-xs font-bold flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5" /> Dodaj strefę
+              </button>
+            </div>
+          </div>
+
+          {/* Spatial map — 3 piętra */}
+          <div className="space-y-4">
+            {HOUSE_FLOORS.map(floor => {
+              const FloorIcon = floor.icon;
+              return (
+                <div key={floor.name} className="bg-white rounded-[24px] border border-[#78350F]/10 shadow-xs overflow-hidden">
+                  <div className="px-4 py-3 bg-[#FDFCF0] border-b border-[#78350F]/10 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-[#2D4F1E] text-white flex items-center justify-center">
+                      <FloorIcon className="w-4 h-4" />
+                    </div>
+                    <h4 className="text-sm font-bold text-[#2D4F1E]">{floor.name}</h4>
+                    <span className="text-[11px] text-[#78350F]/60">{floor.rooms.length} pomieszczeń</span>
+                  </div>
+                  <div className="p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {floor.rooms.map(room => {
+                      const zonesForRoom = filteredVisualZones.filter(z => z.name.toLowerCase().includes(room.toLowerCase()) || (room==='Ogród' && z.zoneType==='garden'));
+                      const hasZone = zonesForRoom.length > 0;
+                      if (!hasZone) {
+                        return (
+                          <div key={room} className="rounded-2xl border-2 border-dashed border-[#78350F]/15 p-3 flex flex-col items-center justify-center min-h-[140px] bg-[#FDFCF0]/50 hover:border-[#D97706]/30 transition-colors">
+                            <div className="w-10 h-10 rounded-xl bg-white border border-[#78350F]/10 flex items-center justify-center text-xl mb-1">🏠</div>
+                            <div className="text-xs font-bold text-[#2D4F1E]">{room}</div>
+                            <div className="text-[10px] text-[#78350F]/50 mb-2">Brak strefy</div>
+                            <button onClick={() => { setNewZoneName(room); setNewZoneType(floor.name.includes('Ogród')?'garden':'room'); setIsAddingZone(true); }} className="px-2.5 py-1 bg-white border border-[#78350F]/15 rounded-full text-[11px] font-bold flex items-center gap-1 hover:bg-[#2D4F1E] hover:text-white">
+                              <Plus className="w-3 h-3" /> Dodaj strefę
+                            </button>
+                          </div>
+                        );
+                      }
+                      return zonesForRoom.map(zone => {
+                        const latest = zone.entries[zone.entries.length-1];
+                        const thumb = latest?.thumbnailUrl || latest?.mediaUrl;
+                        const isVideo = latest?.mediaType==='video';
+                        return (
+                          <div key={zone.id} className="rounded-2xl border border-[#78350F]/10 overflow-hidden bg-white hover:shadow-md hover:border-[#D97706]/30 transition-all group">
+                            <div className="relative h-[110px] bg-[#FDFCF0] overflow-hidden">
+                              {thumb ? (
+                                isVideo ? (
+                                  <div className="w-full h-full relative">
+                                    <img src={thumb} alt={zone.name} className="w-full h-full object-cover" />
+                                    <span className="absolute top-1.5 left-1.5 bg-[#D97706] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1"><Video className="w-3 h-3" /> wideo</span>
+                                  </div>
+                                ) : (
+                                  <img src={thumb} alt={zone.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                )
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-2xl">📸</div>
+                              )}
+                              <span className={`absolute top-1.5 right-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${zone.zoneType==='garden'?'bg-emerald-600 text-white':'bg-[#2D4F1E] text-white'}`}>{zone.zoneType==='garden'?'Ogród':'Pokój'}</span>
+                            </div>
+                            <div className="p-2.5">
+                              <div className="text-xs font-bold text-[#2D4F1E] truncate">{zone.name}</div>
+                              <div className="text-[11px] text-[#78350F]/60">{zone.entries.length} wpisów • {latest ? format(new Date(latest.capturedAt), 'd MMM yyyy', {locale: pl}) : 'brak'}</div>
+                              <div className="flex gap-1.5 mt-2">
+                                <button onClick={() => setSelectedVisualZone(zone)} className="flex-1 py-1.5 bg-[#2D4F1E] text-white rounded-xl text-[11px] font-bold flex items-center justify-center gap-1">
+                                  <Eye className="w-3 h-3" /> Wejdź
+                                </button>
+                                <button onClick={() => setSelectedVisualZone(zone)} className="p-1.5 bg-white border border-[#78350F]/15 rounded-xl hover:bg-[#FDFCF0]">
+                                  <Camera className="w-3.5 h-3.5 text-[#78350F]" />
+                                </button>
+                                <button onClick={() => { if(confirm(`Usunąć strefę ${zone.name}?`)) deleteVisualZone(zone.id); }} className="p-1.5 bg-white border border-red-200 rounded-xl hover:bg-red-50">
+                                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Lista wszystkich stref — Panel Zarządzania (edycja) + Wspólny (podgląd) */}
+          <div className="bg-white rounded-[24px] border border-[#78350F]/10 p-4 shadow-xs">
+            <h4 className="text-xs font-bold text-[#2D4F1E] flex items-center gap-2 mb-2">
+              <Layers className="w-3.5 h-3.5 text-[#78350F]" /> Wszystkie strefy ({filteredVisualZones.length})
+              <span className="text-[11px] font-normal text-[#78350F]/60">— w Panelu Wspólnym wszyscy widzą podgląd, w Zarządzaniu Kamil dodaje/edytuje</span>
+            </h4>
+            {filteredVisualZones.length===0 ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 rounded-2xl bg-[#FDFCF0] border border-[#78350F]/10 flex items-center justify-center text-2xl mx-auto mb-2">🏡</div>
+                <div className="text-sm font-bold text-[#2D4F1E]">Brak stref wizualnych</div>
+                <div className="text-xs text-[#78350F]/60">Dodaj pierwszą — np. Salon, Kuchnia, Ogród — a potem rób zdjęcia/wideo z telefonu. To jest „przestrzenne pomieszczenie”.</div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {filteredVisualZones.map(z => (
+                  <div key={z.id} className="border border-[#78350F]/10 rounded-2xl p-3 flex gap-3 hover:border-[#D97706]/30">
+                    <div className="w-16 h-16 rounded-xl bg-[#FDFCF0] overflow-hidden shrink-0 border border-[#78350F]/10">
+                      {z.entries[z.entries.length-1]?.mediaUrl ? (
+                        <img src={z.entries[z.entries.length-1].thumbnailUrl || z.entries[z.entries.length-1].mediaUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">📷</div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-bold truncate">{z.name}</div>
+                      <div className="text-[11px] text-[#78350F]/60">{z.zoneType} • {z.entries.length} wpisów</div>
+                      <button onClick={() => setSelectedVisualZone(z)} className="mt-1 text-[11px] font-bold text-[#2D4F1E] underline">Otwórz →</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Add zone modal */}
+          {isAddingZone && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="bg-[#FDFCF0] rounded-[24px] p-5 w-full max-w-md shadow-xl border border-[#78350F]/10">
+                <h3 className="text-sm font-bold text-[#2D4F1E] mb-3">Dodaj strefę przestrzenną</h3>
+                <label className="block text-xs font-bold mb-1">Nazwa pomieszczenia</label>
+                <input value={newZoneName} onChange={e=>setNewZoneName(e.target.value)} placeholder="np. Salon, Kuchnia, Ogród" className="w-full px-3 py-2 bg-white border border-[#78350F]/15 rounded-xl text-xs mb-3" />
+                <label className="block text-xs font-bold mb-1">Typ</label>
+                <select value={newZoneType} onChange={e=>setNewZoneType(e.target.value as any)} className="w-full px-3 py-2 bg-white border border-[#78350F]/15 rounded-xl text-xs mb-4">
+                  <option value="room">Pomieszczenie</option>
+                  <option value="garden">Ogród</option>
+                  <option value="utility">Gospodarcze</option>
+                </select>
+                <div className="flex gap-2">
+                  <button onClick={()=>setIsAddingZone(false)} className="flex-1 py-2.5 border border-[#78350F]/15 rounded-xl text-xs font-bold">Anuluj</button>
+                  <button onClick={()=>{ if(!newZoneName.trim()) return; addVisualZone({name: newZoneName.trim(), zoneType: newZoneType}); setNewZoneName(''); setIsAddingZone(false); showToast('Dodano strefę', newZoneName, 'success'); }} className="flex-1 py-2.5 bg-[#2D4F1E] text-white rounded-xl text-xs font-bold">Dodaj</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {selectedVisualZone && (
+            <VisualZoneModal zone={visualZones.find(z=>z.id===selectedVisualZone.id) || selectedVisualZone} onClose={()=>setSelectedVisualZone(null)} />
+          )}
         </div>
       )}
 
