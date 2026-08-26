@@ -216,9 +216,8 @@ export const AdminPlanView: React.FC = () => {
   const [visualFilter, setVisualFilter] = useState<'all' | 'room' | 'garden'>('all');
 
   const HOUSE_FLOORS = [
-    { name: 'Parter', icon: Home, rooms: ['Salon', 'Kuchnia', 'Łazienka', 'Przedpokój', 'Kotłownia', 'Ganek'] },
-    { name: 'Poddasze', icon: Layers, rooms: ['Sypialnia', 'Pokój Olivii', 'Klatka schodowa', 'Garderoba'] },
-    { name: 'Ogród & obejście', icon: TreePine, rooms: ['Ogród', 'Taras', 'Drewutnia', 'Altanka', 'Szklarnia'] },
+    { name: 'Dół', icon: Home, rooms: ['Dół Ganek+Kotłownia', 'Kuchnia', 'Łazienka'] },
+    { name: 'Góra', icon: Layers, rooms: ['Sypialnia Góra', 'Pokój Olivii', 'Góra Przedpokój', 'Schody'] },
   ];
 
   const filteredVisualZones = visualFilter === 'all' ? visualZones : visualZones.filter(z => z.zoneType === visualFilter);
@@ -560,7 +559,16 @@ export const AdminPlanView: React.FC = () => {
                   </div>
                   <div className="p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     {floor.rooms.map(room => {
-                      const zonesForRoom = filteredVisualZones.filter(z => z.name.toLowerCase().includes(room.toLowerCase()) || (room==='Ogród' && z.zoneType==='garden'));
+                      const zonesForRoom = filteredVisualZones.filter(z => {
+                        const zn = z.name.toLowerCase();
+                        const rn = room.toLowerCase();
+                        if (rn.includes('+')) {
+                          const parts = rn.split('+').map(s => s.replace('dół','').replace('góra','').trim()).filter(Boolean);
+                          return parts.some(p => zn.includes(p));
+                        }
+                        const clean = rn.replace('dół','').replace('góra','').trim();
+                        return zn.includes(clean) || clean.includes(zn);
+                      });
                       const hasZone = zonesForRoom.length > 0;
                       if (!hasZone) {
                         return (
