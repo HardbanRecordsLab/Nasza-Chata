@@ -16,6 +16,8 @@ import {
   VisualZone,
   VisualEntry,
   WeeklyPlan,
+  ProcessingJob,
+  JobStatus,
 } from '../types';
 import {
   INITIAL_PROFILES,
@@ -107,6 +109,8 @@ interface ChataContextType {
   // Walk-In (CPU)
   createWalkinGraph: (zoneId: string) => Promise<any>;
   createAutoHotspots: (zoneId: string) => Promise<any>;
+  walkinJobs: Record<string, ProcessingJob>;
+  startWalkinJob: (zoneId: string) => Promise<void>;
 
   // Weekly Plans (admin tool)
   weeklyPlans: WeeklyPlan[];
@@ -165,6 +169,7 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [notifications, setNotifications] = useState<Record<string, NotificationSetting>>({});
   const [visualZones, setVisualZones] = useState<VisualZone[]>([]);
   const [weeklyPlans, setWeeklyPlans] = useState<WeeklyPlan[]>([]);
+  const [walkinJobs, setWalkinJobs] = useState<Record<string, ProcessingJob>>({});
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -769,6 +774,60 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [showToast]);
 
+  const startWalkinJob = useCallback(async (zoneId: string) => {
+    const jobId = `job-${zoneId}-${Date.now()}`;
+    const now = new Date().toISOString();
+    const setStatus = (status: JobStatus, progress: number, result?: any) => {
+      setWalkinJobs(prev => ({
+        ...prev,
+        [zoneId]: {
+          id: jobId,
+          zoneId,
+          type: 'walkin',
+          status,
+          progress,
+          createdAt: prev[zoneId]?.createdAt || now,
+          updatedAt: new Date().toISOString(),
+          result,
+        },
+      }));
+    };
+
+    setStatus('queued', 5);
+    await new Promise(r => setTimeout(r, 300));
+    setStatus('analyzing', 20);
+    await new Promise(r => setTimeout(r, 400));
+    setStatus('extracting', 35);
+    await new Promise(r => setTimeout(r, 300));
+    setStatus('finding-viewpoints', 55);
+    await new Promise(r => setTimeout(r, 300));
+
+    setStatus('building-graph', 75);
+    try {
+      await createWalkinGraph(zoneId);
+    } catch (e: any) {
+      setStatus('failed', 75, { error: e.message });
+      throw e;
+    }
+
+    setStatus('creating-hotspots', 90);
+    try {
+      await createAutoHotspots(zoneId);
+    } catch (e: any) {
+      // hotspot failure not fatal — still ready
+      console.warn('Hotspot auto failed', e);
+    }
+
+    setStatus('ready', 100, { message: 'Walk-In gotowy (CPU, bez GPU)' });
+    setTimeout(() => {
+      setWalkinJobs(prev => {
+        const copy = { ...prev };
+        delete copy[zoneId];
+        return copy;
+      });
+    }, 3000);
+  }, [createWalkinGraph, createAutoHotspots]);
+
   // Weekly Plans (admin tool)
   const getWeeklyPlan = useCallback((weekStart: string) => weeklyPlans.find(p => p.weekStart === weekStart), [weeklyPlans]);
 
@@ -869,6 +928,8 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteVisualEntry,
         createWalkinGraph,
         createAutoHotspots,
+        walkinJobs,
+        startWalkinJob,
         weeklyPlans,
         getWeeklyPlan,
         saveWeeklyPlan,

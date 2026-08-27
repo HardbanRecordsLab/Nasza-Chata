@@ -189,6 +189,21 @@ export interface SpaceVersion {
   entriesCount: number;
   hotspotsCount: number;
   note?: string;
+  linksSnapshot?: ViewpointLink[];
+}
+
+export type JobStatus = 'queued' | 'analyzing' | 'extracting' | 'finding-viewpoints' | 'building-graph' | 'creating-hotspots' | 'stitching' | 'ready' | 'failed';
+
+export interface ProcessingJob {
+  id: string;
+  zoneId: string;
+  type: 'walkin' | 'panorama' | 'update';
+  status: JobStatus;
+  progress: number; // 0..100
+  createdAt: string;
+  updatedAt: string;
+  result?: any;
+  error?: string;
 }
 
 export interface VisualZone {

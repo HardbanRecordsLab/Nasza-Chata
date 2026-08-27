@@ -51,6 +51,8 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
     completions,
     createWalkinGraph,
     createAutoHotspots,
+    walkinJobs,
+    startWalkinJob,
   } = useChata();
 
   const [view, setView] = useState<ModalView>(
@@ -903,30 +905,42 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {zone.entries.length >= 2 && (
-              zone.viewpointLinks && zone.viewpointLinks.length > 0 ? (
-                <button
-                  onClick={() => { setWalkinEntry(sortedEntries[0]); setView('walkin'); }}
-                  className="px-3 py-2 bg-white text-zinc-900 hover:bg-zinc-100 rounded-xl text-xs font-bold flex items-center gap-1.5"
-                >
-                  <Eye className="w-4 h-4" /> Walk-In
-                </button>
-              ) : (currentProfile.isAdmin || currentProfile.id === 'kamil') ? (
-                <button
-                  disabled={isBuildingWalkin}
-                  onClick={async () => {
-                    setIsBuildingWalkin(true);
-                    try {
-                      await createWalkinGraph(zone.id);
-                      await createAutoHotspots(zone.id);
-                    } finally { setIsBuildingWalkin(false); }
-                  }}
-                  className="px-3 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
-                >
-                  {isBuildingWalkin ? 'Budowanie...' : 'Zbuduj Walk-In (CPU)'}
-                </button>
-              ) : null
-            )}
+            {(() => {
+              const job = walkinJobs[zone.id];
+              if (job && job.status !== 'ready' && job.status !== 'failed') {
+                const labels: Record<string, string> = {
+                  queued: 'Kolejka',
+                  analyzing: 'Analiza mediów (CPU)',
+                  extracting: 'Ekstrakcja klatek',
+                  'finding-viewpoints': 'Szukanie punktów',
+                  'building-graph': 'Budowa grafu',
+                  'creating-hotspots': 'Hotspoty',
+                };
+                return (
+                  <div className="px-3 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-2">
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {labels[job.status] || job.status} {job.progress}%
+                  </div>
+                );
+              }
+              return zone.entries.length >= 2 && (
+                zone.viewpointLinks && zone.viewpointLinks.length > 0 ? (
+                  <button
+                    onClick={() => { setWalkinEntry(sortedEntries[0]); setView('walkin'); }}
+                    className="px-3 py-2 bg-white text-zinc-900 hover:bg-zinc-100 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Eye className="w-4 h-4" /> Walk-In
+                  </button>
+                ) : (currentProfile.isAdmin || currentProfile.id === 'kamil') ? (
+                  <button
+                    onClick={() => startWalkinJob(zone.id)}
+                    className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
+                  >
+                    Zbuduj Walk-In (CPU)
+                  </button>
+                ) : null
+              );
+            })()}
             <button
               onClick={() => { setCapturedPhotos([]); setVideoBlob(null); setCurrentAngleIdx(0); setView('capture'); }}
               className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"

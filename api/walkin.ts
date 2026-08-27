@@ -24,8 +24,12 @@ export default async function handler(req: Request | any, res: Response | any) {
         return await handleAutoHotspots(body, res);
       case 'update-space':
         return await handleUpdateSpace(body, res);
+      case 'rollback-version':
+        return await handleRollbackVersion(body, res);
+      case 'panorama-attempt':
+        return await handlePanoramaAttempt(body, res);
       default:
-        return res.status(400).json({ error: 'Unknown action. Use ?action=create-viewpoints|auto-hotspots|update-space' });
+        return res.status(400).json({ error: 'Unknown action. Use ?action=create-viewpoints|auto-hotspots|update-space|rollback-version|panorama-attempt' });
     }
   } catch (err: any) {
     return res.status(500).json({ error: 'Walk-in error', details: err.message });
@@ -106,16 +110,15 @@ async function handleCreateViewpoints(body: any, res: Response) {
       linksCount: zone.viewpointLinks.length,
       entriesCount: (zone.entries || []).length,
       hotspotsCount: prevHotspots,
+      linksSnapshot: [...zone.viewpointLinks],
       note: `V${zone.walkinVersion || 1}: ${zone.viewpointLinks.length} links`,
     });
-    // keep last 10
     if (zone.versions.length > 10) zone.versions = zone.versions.slice(-10);
   }
 
   zone.viewpointLinks = links;
   zone.walkinVersion = (zone.walkinVersion || 0) + 1;
   zone.walkinUpdatedAt = now;
-  // push new version
   zone.versions.push({
     version: zone.walkinVersion,
     createdAt: now,
@@ -123,6 +126,7 @@ async function handleCreateViewpoints(body: any, res: Response) {
     linksCount: links.length,
     entriesCount: deduped.length,
     hotspotsCount: 0,
+    linksSnapshot: [...links],
     note: `V${zone.walkinVersion}: utworzono graf`,
   });
   if (zone.versions.length > 10) zone.versions = zone.versions.slice(-10);
@@ -224,4 +228,44 @@ async function handleUpdateSpace(body: any, res: Response) {
     version: zone.walkinVersion,
     detected: changes ? ['Nowy widok'] : [],
   });
+}
+
+async function handleRollbackVersion(body: any, res: Response) {
+  const { zoneId, version } = body;
+  if (!zoneId || version === undefined) return res.status(400).json({ error: 'zoneId and version required' });
+  const db: any = await getDbState();
+  const zones: any[] = db.visualZones || [];
+  const zone = zones.find(z => z.id === zoneId);
+  if (!zone) return res.status(404).json({ error: 'Zone not found' });
+  const target = (zone.versions || []).find((v: any) => v.version === Number(version));
+  if (!target || !target.linksSnapshot) return res.status(404).json({ error: 'Version not found or no snapshot' });
+
+  // save current as new version before rollback
+  if (!zone.versions) zone.versions = [];
+  zone.versions.push({
+    version: (zone.walkinVersion || 0) + 1,
+    createdAt: new Date().toISOString(),
+    createdById: 'system',
+    linksCount: target.linksSnapshot.length,
+    entriesCount: target.entriesCount,
+    hotspotsCount: target.hotspotsCount,
+    linksSnapshot: [...target.linksSnapshot],
+    note: `Rollback → V${version}`,
+  });
+  zone.viewpointLinks = [...target.linksSnapshot];
+  zone.walkinVersion = zone.versions[zone.versions.length - 1].version;
+  zone.walkinUpdatedAt = new Date().toISOString();
+  await saveDbState({ visualZones: zones });
+  return res.status(200).json({ message: `Przywrócono V${version}`, version: zone.walkinVersion, links: zone.viewpointLinks });
+}
+
+async function handlePanoramaAttempt(body: any, res: Response) {
+  const { zoneId } = body;
+  if (!zoneId) return res.status(400).json({ error: 'zoneId required' });
+  // Panorama stitch is done client-side via canvas (CPU) — server just validates
+  // If client sent stitched image, it would be saved via /api/upload, so here we just bump version
+  const db: any = await getDbState();
+  const zone = (db.visualZones || []).find((z: any) => z.id === zoneId);
+  if (!zone) return res.status(404).json({ error: 'Zone not found' });
+  return res.status(200).json({ message: 'Panorama CPU — wykonaj stitch po stronie klienta (canvas) i zapisz jako nowy wpis Panorama 360°', hint: 'Użyj stitchPanorama() z 2-3 zdjęć' });
 }
