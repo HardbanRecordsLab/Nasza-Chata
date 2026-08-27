@@ -18,6 +18,12 @@ import {
   WeeklyPlan,
   ProcessingJob,
   JobStatus,
+  BoardMessage,
+  PantryItem,
+  BudgetLimit,
+  AbsenceMode,
+  FamilyEvent,
+  EquipmentServiceEntry,
 } from '../types';
 import {
   INITIAL_PROFILES,
@@ -119,6 +125,36 @@ interface ChataContextType {
   setWeeklyAssignment: (weekStart: string, taskId: string, profileId: string | null) => void;
   deleteWeeklyPlan: (weekStart: string) => void;
 
+  // Board — Tablica wiadomości (wspólna)
+  boardMessages: BoardMessage[];
+  addBoardMessage: (content: string) => void;
+  deleteBoardMessage: (id: string) => void;
+  togglePinBoardMessage: (id: string) => void;
+
+  // Pantry — Spiżarnia
+  pantryItems: PantryItem[];
+  addPantryItem: (item: Omit<PantryItem, 'id' | 'addedAt' | 'addedById'>) => void;
+  updatePantryItem: (id: string, updates: Partial<PantryItem>) => void;
+  deletePantryItem: (id: string) => void;
+
+  // Budget — Limity
+  budgetLimits: Record<string, BudgetLimit>;
+  setBudgetLimit: (category: string, limit: number) => void;
+
+  // Absence — Tryb nieobecność
+  absenceMode: AbsenceMode | null;
+  setAbsenceMode: (mode: AbsenceMode | null) => void;
+  toggleAbsenceChecklist: (id: string) => void;
+
+  // Family Calendar
+  familyEvents: FamilyEvent[];
+  addFamilyEvent: (event: Omit<FamilyEvent, 'id'>) => void;
+  deleteFamilyEvent: (id: string) => void;
+
+  // Equipment history
+  equipmentHistory: EquipmentServiceEntry[];
+  addEquipmentService: (entry: Omit<EquipmentServiceEntry, 'id' | 'createdById'>) => void;
+
   // Feedback
   toasts: ToastMessage[];
   showToast: (title: string, message?: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
@@ -170,6 +206,12 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [visualZones, setVisualZones] = useState<VisualZone[]>([]);
   const [weeklyPlans, setWeeklyPlans] = useState<WeeklyPlan[]>([]);
   const [walkinJobs, setWalkinJobs] = useState<Record<string, ProcessingJob>>({});
+  const [boardMessages, setBoardMessages] = useState<BoardMessage[]>([]);
+  const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
+  const [budgetLimits, setBudgetLimitsState] = useState<Record<string, BudgetLimit>>({});
+  const [absenceMode, setAbsenceModeState] = useState<AbsenceMode | null>(null);
+  const [familyEvents, setFamilyEvents] = useState<FamilyEvent[]>([]);
+  const [equipmentHistory, setEquipmentHistory] = useState<EquipmentServiceEntry[]>([]);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -204,6 +246,12 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (parsed.notifications) setNotifications(parsed.notifications);
         if (parsed.visualZones) setVisualZones(parsed.visualZones);
         if (parsed.weeklyPlans) setWeeklyPlans(parsed.weeklyPlans);
+        if (parsed.boardMessages) setBoardMessages(parsed.boardMessages);
+        if (parsed.pantryItems) setPantryItems(parsed.pantryItems);
+        if (parsed.budgetLimits) setBudgetLimitsState(parsed.budgetLimits);
+        if (parsed.absenceMode) setAbsenceModeState(parsed.absenceMode);
+        if (parsed.familyEvents) setFamilyEvents(parsed.familyEvents);
+        if (parsed.equipmentHistory) setEquipmentHistory(parsed.equipmentHistory);
       }
     } catch (e) {
       console.warn('LocalStorage load error:', e);
@@ -231,6 +279,12 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (data.notifications) setNotifications(data.notifications);
           if (data.visualZones) setVisualZones(data.visualZones);
           if ((data as any).weeklyPlans) setWeeklyPlans((data as any).weeklyPlans);
+          if ((data as any).boardMessages) setBoardMessages((data as any).boardMessages);
+          if ((data as any).pantryItems) setPantryItems((data as any).pantryItems);
+          if ((data as any).budgetLimits) setBudgetLimitsState((data as any).budgetLimits);
+          if ((data as any).absenceMode) setAbsenceModeState((data as any).absenceMode);
+          if ((data as any).familyEvents) setFamilyEvents((data as any).familyEvents);
+          if ((data as any).equipmentHistory) setEquipmentHistory((data as any).equipmentHistory);
         }
       })
       .catch(() => {
@@ -306,6 +360,12 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           notifications,
           visualZones,
           weeklyPlans,
+          boardMessages,
+          pantryItems,
+          budgetLimits,
+          absenceMode,
+          familyEvents,
+          equipmentHistory,
         })
       );
     } catch {}
@@ -327,13 +387,19 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         notifications,
         visualZones,
         weeklyPlans,
+        boardMessages,
+        pantryItems,
+        budgetLimits,
+        absenceMode,
+        familyEvents,
+        equipmentHistory,
       } as any);
     }, 1500);
 
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
     };
-  }, [profiles, tasks, completions, expenses, shoppingItems, woodInventory, equipment, roomSnapshots, sosAlerts, comments, notifications, visualZones, weeklyPlans, persistState]);
+  }, [profiles, tasks, completions, expenses, shoppingItems, woodInventory, equipment, roomSnapshots, sosAlerts, comments, notifications, visualZones, weeklyPlans, boardMessages, pantryItems, budgetLimits, absenceMode, familyEvents, equipmentHistory, persistState]);
 
   // Profile selection
   const selectProfile = (profile: Profile) => {
@@ -877,6 +943,78 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast('Usunięto plan tygodniowy', weekStart, 'info');
   }, [showToast]);
 
+  // Board — Tablica wiadomości
+  const addBoardMessage = useCallback((content: string) => {
+    if (!content.trim()) return;
+    const msg: BoardMessage = {
+      id: 'board-' + Date.now().toString(),
+      authorId: currentProfile.id,
+      authorName: currentProfile.name,
+      authorAvatar: currentProfile.avatar,
+      content: content.trim().slice(0, 280),
+      createdAt: new Date().toISOString(),
+      pinned: false,
+    };
+    setBoardMessages(prev => [msg, ...prev].slice(0, 50));
+    showToast('Dodano wiadomość', content.slice(0, 30), 'success');
+  }, [currentProfile, showToast]);
+
+  const deleteBoardMessage = useCallback((id: string) => {
+    setBoardMessages(prev => prev.filter(m => m.id !== id));
+    showToast('Usunięto wiadomość', '', 'info');
+  }, [showToast]);
+
+  const togglePinBoardMessage = useCallback((id: string) => {
+    setBoardMessages(prev => prev.map(m => m.id === id ? { ...m, pinned: !m.pinned } : m).sort((a,b) => (Number(b.pinned) - Number(a.pinned)) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+  }, []);
+
+  // Pantry — Spiżarnia
+  const addPantryItem = useCallback((item: Omit<PantryItem, 'id' | 'addedAt' | 'addedById'>) => {
+    const newItem: PantryItem = { ...item, id: 'pantry-' + Date.now().toString(), addedAt: new Date().toISOString(), addedById: currentProfile.id };
+    setPantryItems(prev => [newItem, ...prev]);
+    showToast('Dodano do spiżarni', item.name, 'success');
+  }, [currentProfile.id, showToast]);
+  const updatePantryItem = useCallback((id: string, updates: Partial<PantryItem>) => {
+    setPantryItems(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  }, []);
+  const deletePantryItem = useCallback((id: string) => {
+    setPantryItems(prev => prev.filter(p => p.id !== id));
+    showToast('Usunięto z spiżarni', '', 'info');
+  }, [showToast]);
+
+  // Budget — Limity
+  const setBudgetLimit = useCallback((category: string, limit: number) => {
+    setBudgetLimitsState(prev => ({ ...prev, [category]: { category, limit, period: 'monthly' } }));
+    showToast('Ustawiono limit', `${category}: ${limit} zł`, 'success');
+  }, [showToast]);
+
+  // Absence — Tryb nieobecność
+  const setAbsenceMode = useCallback((mode: AbsenceMode | null) => {
+    setAbsenceModeState(mode);
+    if (mode?.active) showToast('Tryb nieobecność aktywny', `${mode.startDate} → ${mode.endDate}`, 'warning');
+    else showToast('Tryb nieobecność wyłączony', '', 'info');
+  }, [showToast]);
+  const toggleAbsenceChecklist = useCallback((id: string) => {
+    setAbsenceModeState(prev => prev ? { ...prev, checklist: prev.checklist.map(c => c.id === id ? { ...c, done: !c.done } : c) } : prev);
+  }, []);
+
+  // Family Events
+  const addFamilyEvent = useCallback((event: Omit<FamilyEvent, 'id'>) => {
+    const newEvent: FamilyEvent = { ...event, id: 'fevent-' + Date.now().toString() };
+    setFamilyEvents(prev => [...prev, newEvent].sort((a,b) => a.date.localeCompare(b.date)));
+    showToast('Dodano wydarzenie', event.title, 'success');
+  }, [showToast]);
+  const deleteFamilyEvent = useCallback((id: string) => {
+    setFamilyEvents(prev => prev.filter(e => e.id !== id));
+  }, []);
+
+  // Equipment history
+  const addEquipmentService = useCallback((entry: Omit<EquipmentServiceEntry, 'id' | 'createdById'>) => {
+    const newEntry: EquipmentServiceEntry = { ...entry, id: 'esvc-' + Date.now().toString(), createdById: currentProfile.id };
+    setEquipmentHistory(prev => [newEntry, ...prev]);
+    showToast('Dodano serwis', entry.note.slice(0, 30), 'success');
+  }, [currentProfile.id, showToast]);
+
   return (
     <ChataContext.Provider
       value={{
@@ -935,6 +1073,24 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         saveWeeklyPlan,
         setWeeklyAssignment,
         deleteWeeklyPlan,
+        boardMessages,
+        addBoardMessage,
+        deleteBoardMessage,
+        togglePinBoardMessage,
+        pantryItems,
+        addPantryItem,
+        updatePantryItem,
+        deletePantryItem,
+        budgetLimits,
+        setBudgetLimit,
+        absenceMode,
+        setAbsenceMode,
+        toggleAbsenceChecklist,
+        familyEvents,
+        addFamilyEvent,
+        deleteFamilyEvent,
+        equipmentHistory,
+        addEquipmentService,
         toasts,
         showToast,
         removeToast,

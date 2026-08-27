@@ -310,3 +310,58 @@ export interface WeeklyPlan {
   updatedAt: string;
   createdById: string;
 }
+
+export interface BoardMessage {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar?: string;
+  content: string;
+  createdAt: string;
+  pinned?: boolean;
+}
+
+export interface PantryItem {
+  id: string;
+  name: string;
+  category: string;
+  quantity: string;
+  unit?: string;
+  lowThreshold?: number;
+  expiryDate?: string;
+  addedById: string;
+  addedAt: string;
+}
+
+export interface BudgetLimit {
+  category: string;
+  limit: number;
+  period: 'monthly';
+}
+
+export interface AbsenceMode {
+  active: boolean;
+  startDate?: string;
+  endDate?: string;
+  checklist: { id: string; label: string; done: boolean }[];
+  pausedTaskIds?: string[];
+}
+
+export interface FamilyEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  type: 'birthday' | 'visit' | 'other';
+  description?: string;
+  color?: string;
+}
+
+export interface EquipmentServiceEntry {
+  id: string;
+  equipmentId: string;
+  date: string;
+  note: string;
+  cost?: number;
+  nextServiceDate?: string;
+  createdById: string;
+}

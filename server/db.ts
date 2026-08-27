@@ -16,6 +16,13 @@ export interface DatabaseSchema {
   notifications: any;
   profiles?: any[];
   weeklyPlans?: any[];
+  walkinJobs?: any;
+  boardMessages?: any[];
+  pantryItems?: any[];
+  budgetLimits?: any;
+  absenceMode?: any;
+  familyEvents?: any[];
+  equipmentHistory?: any[];
 }
 
 export interface PushSubscriptionRecord {
@@ -39,6 +46,12 @@ let memoryState: DatabaseSchema = {
   comments: [],
   notifications: {},
   weeklyPlans: [],
+  boardMessages: [],
+  pantryItems: [],
+  budgetLimits: {},
+  absenceMode: null,
+  familyEvents: [],
+  equipmentHistory: [],
 };
 
 let memoryPushSubscriptions: PushSubscriptionRecord[] = [];
@@ -166,6 +179,12 @@ export async function saveDbState(incoming: Partial<DatabaseSchema>): Promise<Da
     notifications: incoming.notifications ?? memoryState.notifications,
     profiles: incoming.profiles ?? memoryState.profiles,
     weeklyPlans: (incoming as any).weeklyPlans ?? (memoryState as any).weeklyPlans ?? [],
+    boardMessages: (incoming as any).boardMessages ?? (memoryState as any).boardMessages ?? [],
+    pantryItems: (incoming as any).pantryItems ?? (memoryState as any).pantryItems ?? [],
+    budgetLimits: (incoming as any).budgetLimits ?? (memoryState as any).budgetLimits ?? {},
+    absenceMode: (incoming as any).absenceMode ?? (memoryState as any).absenceMode ?? null,
+    familyEvents: (incoming as any).familyEvents ?? (memoryState as any).familyEvents ?? [],
+    equipmentHistory: (incoming as any).equipmentHistory ?? (memoryState as any).equipmentHistory ?? [],
   };
 
   writeLocalJson(memoryState);

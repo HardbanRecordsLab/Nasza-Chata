@@ -31,6 +31,7 @@ import { MiniCalendarWidget } from '../widgets/MiniCalendarWidget';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
 import { ProofModal } from '../modals/ProofModal';
 import { VisualZoneModal } from '../modals/VisualZoneModal';
+import { BoardWidget } from '../widgets/BoardWidget';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 import { Home, TreePine, Eye, Video } from 'lucide-react';
 
@@ -496,6 +497,9 @@ export const TodayView: React.FC<TodayViewProps> = ({
           onChangeTab?.('calendar');
         }}
       />
+
+      {/* Tablica wiadomości — wspólna (koniec listy) */}
+      <BoardWidget />
 
       {/* Floating AI Assistant Banner */}
       <div className="glass-panel rounded-[32px] p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
