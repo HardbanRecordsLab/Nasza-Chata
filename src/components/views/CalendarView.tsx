@@ -29,6 +29,7 @@ import {
   Circle,
   Camera,
   Plus,
+  Trash2,
 } from 'lucide-react';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
 import { ProofModal } from '../modals/ProofModal';
@@ -39,7 +40,7 @@ interface CalendarViewProps {
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask, initialDate }) => {
-  const { tasks, completions, currentProfile, toggleTaskCompletion, showToast } = useChata();
+  const { tasks, completions, currentProfile, toggleTaskCompletion, showToast, familyEvents, addFamilyEvent, deleteFamilyEvent } = useChata();
 
   const [currentDate, setCurrentDate] = useState<Date>(initialDate || new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate || new Date());
@@ -54,6 +55,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask, initi
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [selectedOccurrence, setSelectedOccurrence] = useState<TaskOccurrence | null>(null);
   const [proofOccurrence, setProofOccurrence] = useState<TaskOccurrence | null>(null);
+  const [isAddingFamilyEvent, setIsAddingFamilyEvent] = useState(false);
+  const [newFamilyTitle, setNewFamilyTitle] = useState('');
+  const [newFamilyDate, setNewFamilyDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [newFamilyType, setNewFamilyType] = useState<'birthday' | 'visit' | 'other'>('other');
+  const [importIcsText, setImportIcsText] = useState('');
 
   // Month navigation
   const nextMonth = () => setCurrentDate(prev => addMonths(prev, 1));
@@ -183,6 +189,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask, initi
             const completedInDay = dayOccurrences.filter(o => o.isCompleted).length;
             const totalInDay = dayOccurrences.length;
             const allCompleted = totalInDay > 0 && completedInDay === totalInDay;
+            const dayFamilyEvents = familyEvents.filter(e => e.date === dayStr);
 
             return (
               <button
@@ -257,9 +264,104 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask, initi
                     </div>
                   </div>
                 )}
+                {dayFamilyEvents.length > 0 && (
+                  <div className="flex gap-0.5 mt-1 flex-wrap">
+                    {dayFamilyEvents.map(ev => (
+                      <span key={ev.id} className={`text-[8px] px-1 py-0.5 rounded-full font-bold ${ev.type==='birthday'?'bg-pink-500 text-white':ev.type==='visit'?'bg-blue-500 text-white':'bg-purple-500 text-white'}`} title={ev.title}>
+                        {ev.type==='birthday'?'🎂':ev.type==='visit'?'👋':'📌'} {ev.title.slice(0,6)}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* Kalendarz rodzinny + Sync dwukierunkowy */}
+      <div className="bg-white rounded-[32px] border border-[#78350F]/10 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-[#2D4F1E] flex items-center gap-2">
+            <span className="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">👨‍👩‍👧</span>
+            Kalendarz rodzinny
+            <span className="text-[11px] font-normal text-[#78350F]/60">urodziny/wizyty — inny kolor niż sprzątanie</span>
+          </h3>
+          <button onClick={() => setIsAddingFamilyEvent(!isAddingFamilyEvent)} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center gap-1">
+            <Plus className="w-3.5 h-3.5" /> {isAddingFamilyEvent ? 'Anuluj' : 'Dodaj wydarzenie'}
+          </button>
+        </div>
+
+        {isAddingFamilyEvent && (
+          <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-xl flex flex-col gap-2">
+            <input value={newFamilyTitle} onChange={e=>setNewFamilyTitle(e.target.value)} placeholder="Tytuł, np. Urodziny Babci" className="px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs" />
+            <div className="flex gap-2">
+              <input type="date" value={newFamilyDate} onChange={e=>setNewFamilyDate(e.target.value)} className="flex-1 px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs" />
+              <select value={newFamilyType} onChange={e=>setNewFamilyType(e.target.value as any)} className="px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-bold">
+                <option value="birthday">🎂 Urodziny</option>
+                <option value="visit">👋 Wizyta</option>
+                <option value="other">📌 Inne</option>
+              </select>
+            </div>
+            <button
+              onClick={() => {
+                if (!newFamilyTitle.trim()) return;
+                addFamilyEvent({ title: newFamilyTitle.trim(), date: newFamilyDate, type: newFamilyType });
+                setNewFamilyTitle('');
+                setIsAddingFamilyEvent(false);
+              }}
+              className="px-3 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold"
+            >
+              Zapisz wydarzenie
+            </button>
+          </div>
+        )}
+
+        {familyEvents.length === 0 ? (
+          <div className="text-center py-4 text-xs text-[#78350F]/60">Brak wydarzeń — dodaj urodziny, wizyty, terminy.</div>
+        ) : (
+          <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
+            {familyEvents.slice(0, 12).map(ev => (
+              <div key={ev.id} className="flex items-center justify-between p-2 bg-white border border-[#78350F]/10 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs ${ev.type==='birthday'?'bg-pink-100':'bg-blue-100'}`}>{ev.type==='birthday'?'🎂':ev.type==='visit'?'👋':'📌'}</span>
+                  <div>
+                    <div className="text-xs font-bold">{ev.title}</div>
+                    <div className="text-[11px] text-[#78350F]/60">{ev.date} • {ev.type}</div>
+                  </div>
+                </div>
+                <button onClick={() => deleteFamilyEvent(ev.id)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 p-3 bg-zinc-50 border border-zinc-200 rounded-xl">
+          <div className="text-xs font-bold text-[#2D4F1E] flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Dwukierunkowy sync z Google/Apple</div>
+          <div className="text-[11px] text-[#78350F]/70 mt-1">Eksport: <code className="bg-white px-1 py-0.5 rounded border">/api/export?action=calendar.ics</code> — dodaj jako „Kalendarz z adresu URL” w Google. Import: wklej treść .ics poniżej.</div>
+          <textarea value={importIcsText} onChange={e=>setImportIcsText(e.target.value)} placeholder="Wklej tu treść pliku .ics (BEGIN:VCALENDAR...)" rows={3} className="mt-2 w-full p-2 bg-white border border-zinc-200 rounded-xl text-[11px] font-mono" />
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => {
+                if (!importIcsText.includes('BEGIN:VEVENT')) { showToast('Brak VEVENT', 'Wklej poprawny .ics', 'error'); return; }
+                const events = importIcsText.split('BEGIN:VEVENT').slice(1);
+                let added = 0;
+                events.forEach(block => {
+                  const summary = block.match(/SUMMARY:(.*)/)?.[1]?.trim() || 'Wydarzenie z ICS';
+                  const dtstart = block.match(/DTSTART[^:]*:(\d{8})/)?.[1];
+                  const date = dtstart ? `${dtstart.slice(0,4)}-${dtstart.slice(4,6)}-${dtstart.slice(6,8)}` : newFamilyDate;
+                  addFamilyEvent({ title: summary, date, type: 'other', description: 'Import ICS' });
+                  added++;
+                });
+                setImportIcsText('');
+                showToast('Import ICS', `Dodano ${added} wydarzeń`, 'success');
+              }}
+              className="px-3 py-1.5 bg-[#2D4F1E] text-white rounded-xl text-xs font-bold"
+            >
+              Importuj ICS
+            </button>
+            <button onClick={handleExportIcs} className="px-3 py-1.5 bg-white border border-[#78350F]/15 rounded-xl text-xs font-bold">Pobierz .ics</button>
+          </div>
         </div>
       </div>
 
