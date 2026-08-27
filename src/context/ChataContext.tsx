@@ -104,6 +104,10 @@ interface ChataContextType {
   addVisualEntry: (zoneId: string, entry: Omit<VisualEntry, 'id'>) => void;
   deleteVisualEntry: (zoneId: string, entryId: string) => void;
 
+  // Walk-In (CPU)
+  createWalkinGraph: (zoneId: string) => Promise<any>;
+  createAutoHotspots: (zoneId: string) => Promise<any>;
+
   // Weekly Plans (admin tool)
   weeklyPlans: WeeklyPlan[];
   getWeeklyPlan: (weekStart: string) => WeeklyPlan | undefined;
@@ -719,6 +723,52 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast('Usunięto wpis wizualny', '', 'info');
   };
 
+  // Walk-In (CPU, bez GPU) — Viewpoint Graph + auto-hotspots
+  const createWalkinGraph = useCallback(async (zoneId: string) => {
+    try {
+      const res = await fetch('/api/walkin?action=create-viewpoints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zoneId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Błąd walk-in');
+      // refresh from server
+      try {
+        const sRes = await fetch('/api/state');
+        const s = await sRes.json();
+        if (s.visualZones) setVisualZones(s.visualZones);
+      } catch {}
+      showToast('Walk-In gotowy', data.message, 'success');
+      return data;
+    } catch (e: any) {
+      showToast('Błąd Walk-In', e.message, 'error');
+      throw e;
+    }
+  }, [showToast]);
+
+  const createAutoHotspots = useCallback(async (zoneId: string) => {
+    try {
+      const res = await fetch('/api/walkin?action=auto-hotspots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zoneId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Błąd hotspotów');
+      try {
+        const sRes = await fetch('/api/state');
+        const s = await sRes.json();
+        if (s.visualZones) setVisualZones(s.visualZones);
+      } catch {}
+      showToast('Hotspoty gotowe', data.message, 'success');
+      return data;
+    } catch (e: any) {
+      showToast('Błąd hotspotów', e.message, 'error');
+      throw e;
+    }
+  }, [showToast]);
+
   // Weekly Plans (admin tool)
   const getWeeklyPlan = useCallback((weekStart: string) => weeklyPlans.find(p => p.weekStart === weekStart), [weeklyPlans]);
 
@@ -817,6 +867,8 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteVisualZone,
         addVisualEntry,
         deleteVisualEntry,
+        createWalkinGraph,
+        createAutoHotspots,
         weeklyPlans,
         getWeeklyPlan,
         saveWeeklyPlan,

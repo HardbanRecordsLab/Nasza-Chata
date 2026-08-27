@@ -19,6 +19,7 @@ import {
   Pause,
   Check,
   Plus,
+  Eye,
 } from 'lucide-react';
 
 interface VisualZoneModalProps {
@@ -26,7 +27,7 @@ interface VisualZoneModalProps {
   onClose: () => void;
 }
 
-type ModalView = 'timeline' | 'capture' | 'compare' | 'detail';
+type ModalView = 'timeline' | 'capture' | 'compare' | 'detail' | 'walkin';
 
 const DEFAULT_ANGLES: Record<string, string[]> = {
   room: ['Od drzwi', 'Od okna', 'Widok ogólny'],
@@ -43,6 +44,8 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
     showToast,
     tasks,
     completions,
+    createWalkinGraph,
+    createAutoHotspots,
   } = useChata();
 
   const [view, setView] = useState<ModalView>(
@@ -51,6 +54,8 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
   const [selectedEntry, setSelectedEntry] = useState<VisualEntry | null>(null);
   const [compareEntry, setCompareEntry] = useState<VisualEntry | null>(null);
   const [filterAngle, setFilterAngle] = useState<string>('all');
+  const [walkinEntry, setWalkinEntry] = useState<VisualEntry | null>(null);
+  const [isBuildingWalkin, setIsBuildingWalkin] = useState(false);
 
   // Capture flow state
   const [captureMode, setCaptureMode] = useState<'photo' | 'video'>('photo');
@@ -656,6 +661,101 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
     );
   }
 
+  // ---- RENDER: WALKIN VIEW (CPU photo-based, no GPU) ----
+  if (view === 'walkin' && walkinEntry) {
+    const walkLinks = zone.viewpointLinks || [];
+    const walkHotspots = (walkinEntry.tags || []).filter(t => t.targetEntryId);
+    const walkIdx = sortedEntries.findIndex(e => e.id === walkinEntry.id);
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-zinc-900 animate-in fade-in">
+        <div className="p-4 flex items-center justify-between bg-zinc-900 border-b border-white/10">
+          <button onClick={() => setView('timeline')} className="p-2 text-white/60 hover:text-white">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <h3 className="text-white font-bold text-sm flex items-center gap-2">
+            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" /> Walk-In • {walkinEntry.angleLabel || zone.name}
+            {zone.walkinVersion && <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-full">V{zone.walkinVersion}</span>}
+          </h3>
+          <button onClick={onClose} className="p-2 text-white/60 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 relative overflow-hidden bg-black flex items-center justify-center">
+          {walkinEntry.mediaType === 'video' ? (
+            <video src={walkinEntry.mediaUrl} controls poster={walkinEntry.thumbnailUrl} className="w-full h-full object-contain" />
+          ) : (
+            <img src={walkinEntry.mediaUrl} alt="" className="w-full h-full object-contain" />
+          )}
+
+          {/* Walk-point hotspots (CPU auto) */}
+          {walkHotspots.map(tag => {
+            const target = sortedEntries.find(e => e.id === tag.targetEntryId);
+            return (
+              <button
+                key={tag.id}
+                onClick={() => {
+                  const tgt = sortedEntries.find(e => e.id === tag.targetEntryId);
+                  if (tgt) setWalkinEntry(tgt);
+                }}
+                className="absolute -ml-6 -mt-6 w-12 h-12 rounded-full group flex items-center justify-center"
+                style={{ left: `${tag.x}%`, top: `${tag.y}%` }}
+                title={`Idź → ${target?.angleLabel || 'kolejny widok'}`}
+              >
+                <span className="absolute inset-0 bg-emerald-400/30 rounded-full animate-ping" />
+                <span className="relative w-10 h-10 bg-white rounded-full border-2 border-emerald-500 shadow-xl flex items-center justify-center text-emerald-600">
+                  <ChevronRight className="w-5 h-5" />
+                </span>
+                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap opacity-0 group-hover:opacity-100">
+                  {tag.label}
+                </span>
+              </button>
+            );
+          })}
+
+          {/* Task hotspots still visible but dimmed */}
+          {(walkinEntry.tags || []).filter(t => !t.targetEntryId && t.taskId).map((tag, idx) => (
+            <div key={tag.id} className="absolute w-6 h-6 -ml-3 -mt-3 rounded-full bg-amber-500 border-2 border-white shadow flex items-center justify-center text-white text-[9px] font-black opacity-70" style={{ left: `${tag.x}%`, top: `${tag.y}%` }}>
+              {idx + 1}
+            </div>
+          ))}
+
+          {/* Nav arrows */}
+          {walkIdx > 0 && (
+            <button onClick={() => setWalkinEntry(sortedEntries[walkIdx - 1])} className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center backdrop-blur-sm">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+          {walkIdx < sortedEntries.length - 1 && (
+            <button onClick={() => setWalkinEntry(sortedEntries[walkIdx + 1])} className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center backdrop-blur-sm">
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        {/* Bottom bar: graph dots + info */}
+        <div className="p-3 bg-zinc-900 border-t border-white/10 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            {sortedEntries.map((e, i) => (
+              <button
+                key={e.id}
+                onClick={() => setWalkinEntry(e)}
+                className={`w-8 h-8 rounded-lg overflow-hidden border-2 shrink-0 ${e.id === walkinEntry.id ? 'border-emerald-400' : 'border-white/10 opacity-60'}`}
+                title={e.angleLabel || `Widok ${i+1}`}
+              >
+                <img src={e.thumbnailUrl || e.mediaUrl} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-white text-xs font-bold">{walkinEntry.angleLabel || `Widok ${walkIdx + 1}/${sortedEntries.length}`}</div>
+            <div className="text-white/60 text-[11px]">{formatDate(walkinEntry.capturedAt)} • {walkinEntry.capturedByName}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ---- RENDER: TIMELINE VIEW (default) ----
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in">
@@ -673,6 +773,30 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {zone.entries.length >= 2 && (
+              zone.viewpointLinks && zone.viewpointLinks.length > 0 ? (
+                <button
+                  onClick={() => { setWalkinEntry(sortedEntries[0]); setView('walkin'); }}
+                  className="px-3 py-2 bg-white text-zinc-900 hover:bg-zinc-100 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Eye className="w-4 h-4" /> Walk-In
+                </button>
+              ) : (currentProfile.isAdmin || currentProfile.id === 'kamil') ? (
+                <button
+                  disabled={isBuildingWalkin}
+                  onClick={async () => {
+                    setIsBuildingWalkin(true);
+                    try {
+                      await createWalkinGraph(zone.id);
+                      await createAutoHotspots(zone.id);
+                    } finally { setIsBuildingWalkin(false); }
+                  }}
+                  className="px-3 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
+                >
+                  {isBuildingWalkin ? 'Budowanie...' : 'Zbuduj Walk-In (CPU)'}
+                </button>
+              ) : null
+            )}
             <button
               onClick={() => { setCapturedPhotos([]); setVideoBlob(null); setCurrentAngleIdx(0); setView('capture'); }}
               className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"

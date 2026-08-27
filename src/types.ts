@@ -149,6 +149,9 @@ export interface RoomTag {
   y: number;
   label: string;
   taskId?: string;
+  targetEntryId?: string; // walk-in navigation: hotspot leads to another viewpoint
+  confidence?: number; // 0..1 auto detection confidence
+  auto?: boolean; // true if auto-generated via CPU matching
 }
 
 export interface RoomSnapshot {
@@ -168,6 +171,15 @@ export interface RoomSnapshot {
 
 export type VisualZoneType = 'room' | 'garden' | 'utility';
 
+export interface ViewpointLink {
+  id: string;
+  sourceEntryId: string;
+  targetEntryId: string;
+  confidence: number; // 0..1
+  auto?: boolean;
+  createdAt: string;
+}
+
 export interface VisualZone {
   id: string;
   name: string;
@@ -175,6 +187,9 @@ export interface VisualZone {
   referenceEntryId?: string;
   captureAngles?: string[];
   entries: VisualEntry[];
+  viewpointLinks?: ViewpointLink[]; // walk-in graph edges
+  walkinVersion?: number; // versioning V1, V2...
+  walkinUpdatedAt?: string;
 }
 
 export interface VisualEntry {
@@ -188,6 +203,8 @@ export interface VisualEntry {
   angleLabel?: string;
   caption?: string;
   tags?: RoomTag[];
+  positionEstimate?: string; // e.g. "wejście" | "środek" | "okno"
+  confidence?: number;
 }
 
 export interface SosAlert {

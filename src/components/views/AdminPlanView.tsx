@@ -77,6 +77,8 @@ export const AdminPlanView: React.FC = () => {
     visualZones,
     addVisualZone,
     deleteVisualZone,
+    createWalkinGraph,
+    createAutoHotspots,
     showToast,
   } = useChata();
 
@@ -544,6 +546,26 @@ export const AdminPlanView: React.FC = () => {
             </div>
           </div>
 
+          {/* Walk-In CPU — bez GPU */}
+          <div className="bg-gradient-to-br from-[#2D4F1E] to-[#1a3a12] rounded-2xl p-4 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-white/10">
+            <div>
+              <h4 className="text-sm font-bold flex items-center gap-2">
+                <Eye className="w-4 h-4 text-amber-300" /> Virtual Walk-In — CPU, bez GPU
+              </h4>
+              <p className="text-[11px] text-white/70 mt-0.5 max-w-xl">
+                Photo-based: zdjęcia/wideo → punkty widokowe → graf połączeń → hotspoty przejścia. Działa na zwykłym CPU/VPS. Wejdź w pokój → Walk-In → przechodź między widokami.
+              </p>
+              <p className="text-[10px] text-white/50 mt-1">
+                {visualZones.filter(z => z.viewpointLinks && z.viewpointLinks.length > 0).length}/{visualZones.length} stref ma Walk-In • {visualZones.reduce((s,z)=>s+(z.viewpointLinks?.length||0),0)} połączeń • {visualZones.reduce((s,z)=>s+z.entries.reduce((a,e)=>a+(e.tags?.filter(t=>t.targetEntryId)?.length||0),0),0)} hotspotów
+              </p>
+            </div>
+            <div className="text-[10px] bg-white/10 border border-white/15 px-3 py-2 rounded-xl">
+              <div className="font-bold">Bez GPU</div>
+              <div className="text-white/60">OpenCV/sharp/FFmpeg tylko CPU</div>
+              <div className="text-white/60">4 CPU / 8GB wystarczy</div>
+            </div>
+          </div>
+
           {/* Spatial map — 3 piętra */}
           <div className="space-y-4">
             {HOUSE_FLOORS.map(floor => {
@@ -616,6 +638,26 @@ export const AdminPlanView: React.FC = () => {
                                 <button onClick={() => { if(confirm(`Usunąć strefę ${zone.name}?`)) deleteVisualZone(zone.id); }} className="p-1.5 bg-white border border-red-200 rounded-xl hover:bg-red-50">
                                   <Trash2 className="w-3.5 h-3.5 text-red-600" />
                                 </button>
+                              </div>
+                              <div className="mt-1.5 flex items-center justify-between">
+                                {zone.viewpointLinks && zone.viewpointLinks.length > 0 ? (
+                                  <span className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full border border-emerald-200">Walk-In V{zone.walkinVersion} • {zone.viewpointLinks.length} links</span>
+                                ) : (
+                                  <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">Brak Walk-In</span>
+                                )}
+                                {zone.entries.length >= 2 && (
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await createWalkinGraph(zone.id);
+                                        await createAutoHotspots(zone.id);
+                                      } catch {}
+                                    }}
+                                    className="text-[10px] font-bold text-[#2D4F1E] hover:text-[#D97706] underline"
+                                  >
+                                    {zone.viewpointLinks?.length ? 'Przebuduj' : 'Zbuduj Walk-In'}
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
