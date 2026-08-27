@@ -501,6 +501,45 @@ export const TodayView: React.FC<TodayViewProps> = ({
       {/* Tablica wiadomości — wspólna (koniec listy) */}
       <BoardWidget />
 
+      {/* Tryb nieobecność — checklista wyjazdu + pauza przypomnień */}
+      {(() => {
+        const { absenceMode, setAbsenceMode, toggleAbsenceChecklist } = useChata();
+        const isActive = absenceMode?.active;
+        return (
+          <div className={`rounded-[24px] border p-4 shadow-xs ${isActive ? 'bg-amber-50 border-amber-200' : 'bg-white border-[#78350F]/10'}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[#2D4F1E] flex items-center gap-2">
+                <span className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">✈️</span>
+                Tryb nieobecność
+                {isActive && <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full">AKTYWNY</span>}
+              </h3>
+              <button
+                onClick={() => {
+                  if (isActive) setAbsenceMode(null);
+                  else setAbsenceMode({ active: true, startDate: new Date().toISOString().split('T')[0], endDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0], checklist: [{ id: '1', label: 'Zakręcić wodę', done: false }, { id: '2', label: 'Wynieść śmieci', done: false }, { id: '3', label: 'Piec — wygasić', done: false }, { id: '4', label: 'Zamknąć okna', done: false }], pausedTaskIds: [] });
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold ${isActive ? 'bg-white border border-amber-300 text-amber-700' : 'bg-[#2D4F1E] text-white'}`}
+              >
+                {isActive ? 'Wyłącz' : 'Włącz na tydzień'}
+              </button>
+            </div>
+            {isActive && absenceMode && (
+              <div className="mt-3 space-y-1.5">
+                <div className="text-[11px] text-[#78350F]/70">Wyjazd {absenceMode.startDate} → {absenceMode.endDate} • przypomnienia wstrzymane • checklista:</div>
+                {absenceMode.checklist.map(item => (
+                  <label key={item.id} className="flex items-center gap-2 p-2 bg-white border border-[#78350F]/10 rounded-xl cursor-pointer hover:bg-[#FDFCF0]">
+                    <input type="checkbox" checked={item.done} onChange={() => toggleAbsenceChecklist(item.id)} className="w-4 h-4 rounded border-[#78350F]/30 text-[#2D4F1E] focus:ring-[#2D4F1E]/20" />
+                    <span className={`text-xs ${item.done ? 'line-through text-[#78350F]/50' : 'text-[#2D4F1E] font-medium'}`}>{item.label}</span>
+                  </label>
+                ))}
+                <div className="text-[10px] text-[#78350F]/50">W trybie nieobecności codzienne przypomnienia są pauzowane (crony szanują `absenceMode.active`).</div>
+              </div>
+            )}
+            {!isActive && <p className="text-[11px] text-[#78350F]/60 mt-2">Jedna checklista przed wyjazdem + automatyczne wstrzymanie przypomnień.</p>}
+          </div>
+        );
+      })()}
+
       {/* Floating AI Assistant Banner */}
       <div className="glass-panel rounded-[32px] p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
         <div className="flex items-center gap-3">

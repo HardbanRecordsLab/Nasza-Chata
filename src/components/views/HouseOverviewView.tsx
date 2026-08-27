@@ -57,6 +57,8 @@ export const HouseOverviewView: React.FC = () => {
     addEquipment,
     updateEquipment,
     deleteEquipment,
+    equipmentHistory,
+    addEquipmentService,
     roomSnapshots,
     addRoomSnapshot,
     visualZones,
@@ -466,6 +468,46 @@ export const HouseOverviewView: React.FC = () => {
                         {eq.manualNotes}
                       </p>
                     )}
+                  </div>
+                  {/* Historia serwisów — widoczna w UI */}
+                  <div className="mt-2 bg-white border border-[#78350F]/10 rounded-2xl p-3">
+                    <div className="text-[11px] font-bold text-[#2D4F1E] flex items-center justify-between">
+                      <span>Historia serwisów</span>
+                      <span className="text-[10px] bg-[#78350F]/10 px-1.5 py-0.5 rounded-full">{equipmentHistory.filter(h => h.equipmentId === eq.id).length}</span>
+                    </div>
+                    <div className="space-y-1.5 mt-2 max-h-[120px] overflow-y-auto">
+                      {equipmentHistory.filter(h => h.equipmentId === eq.id).length === 0 ? (
+                        <div className="text-[11px] text-[#78350F]/50 italic">Brak wpisów — dodaj pierwszy serwis.</div>
+                      ) : (
+                        equipmentHistory.filter(h => h.equipmentId === eq.id).slice(0, 3).map(h => (
+                          <div key={h.id} className="text-[11px] bg-[#FDFCF0] border border-[#78350F]/10 rounded-xl p-2">
+                            <div className="flex justify-between">
+                              <span className="font-bold">{h.date}</span>
+                              {h.cost !== undefined && <span className="font-mono">{h.cost} zł</span>}
+                            </div>
+                            <div className="text-[#78350F]/70">{h.note}</div>
+                            {h.nextServiceDate && <div className="text-[10px] text-[#D97706]">Następny: {h.nextServiceDate}</div>}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="flex gap-1.5 mt-2">
+                      <input id={`svc-note-${eq.id}`} placeholder="Notatka, np. Wymiana oleju" className="flex-1 px-2 py-1.5 bg-[#FDFCF0] border border-[#78350F]/10 rounded-xl text-[11px]" />
+                      <input id={`svc-cost-${eq.id}`} placeholder="Koszt" type="number" className="w-16 px-2 py-1.5 bg-white border border-[#78350F]/10 rounded-xl text-[11px]" />
+                      <button
+                        onClick={() => {
+                          const noteEl = document.getElementById(`svc-note-${eq.id}`) as HTMLInputElement;
+                          const costEl = document.getElementById(`svc-cost-${eq.id}`) as HTMLInputElement;
+                          if (!noteEl?.value.trim()) return;
+                          addEquipmentService({ equipmentId: eq.id, date: new Date().toISOString().split('T')[0], note: noteEl.value.trim(), cost: costEl.value ? parseFloat(costEl.value) : undefined });
+                          noteEl.value = '';
+                          costEl.value = '';
+                        }}
+                        className="px-2.5 py-1.5 bg-[#2D4F1E] text-white rounded-xl text-[11px] font-bold"
+                      >
+                        Dodaj
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
