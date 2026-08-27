@@ -2,6 +2,8 @@ import React, { useState, useRef, useCallback } from 'react';
 import { VisualZone, VisualEntry, RoomTag } from '../../types';
 import { useChata } from '../../context/ChataContext';
 import { isTaskScheduledOnDate } from '../../utils/recurrenceEngine';
+import { extractKeyFrames } from '../../utils/videoFrameExtractor';
+import { hashImageData, hammingDistance } from '../../utils/imageHash';
 import {
   X,
   Camera,
@@ -56,6 +58,7 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
   const [filterAngle, setFilterAngle] = useState<string>('all');
   const [walkinEntry, setWalkinEntry] = useState<VisualEntry | null>(null);
   const [isBuildingWalkin, setIsBuildingWalkin] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   // Capture flow state
   const [captureMode, setCaptureMode] = useState<'photo' | 'video'>('photo');
@@ -230,8 +233,21 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
     const photos = photosOverride ?? capturedPhotos;
     const vBlob = videoBlobOverride !== undefined ? videoBlobOverride : videoBlob;
 
-    // Upload photos to Blob (with compression already done via canvas)
+    // CPU dedup via pHash (bez GPU) — usuń niemal identyczne ujęcia
+    const dedupedPhotos: typeof photos = [];
+    const keptHashes: string[] = [];
     for (const photo of photos) {
+      const h = await hashImageData(photo.dataUrl);
+      let dup = false;
+      for (const kh of keptHashes) if (hammingDistance(h, kh) < 8) { dup = true; break; }
+      if (!dup) { keptHashes.push(h); dedupedPhotos.push(photo); }
+    }
+    if (dedupedPhotos.length < photos.length) {
+      showToast('Usunięto duplikaty (CPU)', `${photos.length - dedupedPhotos.length} duplikatów via pHash`, 'info');
+    }
+
+    // Upload photos to Blob (with compression already done via canvas)
+    for (const photo of dedupedPhotos) {
       let mediaUrl = photo.dataUrl;
       try {
         const filename = `photo-${zone.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.jpg`;
@@ -323,7 +339,7 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
     setVideoThumbnail(null);
     setCurrentAngleIdx(0);
     setView('timeline');
-    showToast('Zapisano wpisy wizualne', `${photos.length + (vBlob ? 1 : 0)} wpisów`, 'success');
+    showToast('Zapisano wpisy wizualne', `${dedupedPhotos.length + (vBlob ? 1 : 0)} wpisów (CPU dedup)`, 'success');
   }, [capturedPhotos, videoBlob, videoThumbnail, zone.id, captureAngles, currentProfile, addVisualEntry, showToast]);
 
   // Handle image click for hotspot
@@ -476,13 +492,77 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
           </div>
         )}
         {videoBlob && (
-          <div className="absolute bottom-32 left-0 right-0 z-20 px-4 flex justify-center">
-            <button
-              onClick={() => { stopCamera(); saveAllEntries(); }}
-              className="px-5 py-2.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold flex items-center gap-2 shadow-xl"
-            >
-              <Check className="w-4 h-4" /> Zapisz wideo
-            </button>
+          <div className="absolute bottom-32 left-0 right-0 z-20 px-4 flex flex-col items-center gap-2">
+            <div className="flex gap-2">
+              <button
+                onClick={() => { stopCamera(); saveAllEntries(); }}
+                className="px-5 py-2.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold flex items-center gap-2 shadow-xl"
+              >
+                <Check className="w-4 h-4" /> Zapisz wideo
+              </button>
+              <button
+                disabled={isExtracting}
+                onClick={async () => {
+                  if (!videoBlob) return;
+                  setIsExtracting(true);
+                  showToast('Analiza wideo (CPU)', 'Ekstrakcja klatek: ostrość + pHash dedup...', 'info');
+                  try {
+                    const frames = await extractKeyFrames(videoBlob, { maxFrames: 6, intervalSec: 1.0 });
+                    if (frames.length === 0) {
+                      showToast('Brak klatek', 'Wideo za krótkie lub niewyraźne', 'warning');
+                      setIsExtracting(false);
+                      return;
+                    }
+                    showToast('Wyodrębniono', `${frames.length} punktów widokowych`, 'success');
+                    // dedup already done, now upload each frame as viewpoint
+                    for (let i = 0; i < frames.length; i++) {
+                      const f = frames[i];
+                      const filename = `walkin-${zone.id}-${Date.now()}-${i}.jpg`;
+                      let mediaUrl = f.dataUrl;
+                      try {
+                        const res = await fetch('/api/upload', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ file: f.dataUrl, filename, folder: `visual-zones/${zone.id}`, mimeType: 'image/jpeg' }),
+                        });
+                        if (res.ok) {
+                          const { url } = await res.json();
+                          mediaUrl = url;
+                        }
+                      } catch {}
+                      addVisualEntry(zone.id, {
+                        capturedAt: new Date(Date.now() + i * 1000).toISOString(),
+                        capturedById: currentProfile.id,
+                        capturedByName: currentProfile.name,
+                        mediaType: 'photo',
+                        mediaUrl,
+                        angleLabel: `Klatka ${i + 1}/${frames.length}`,
+                        caption: `Walk-In z wideo @${f.timeSec.toFixed(1)}s`,
+                      });
+                    }
+                    // auto-build graph + hotspots for new viewpoints
+                    setTimeout(async () => {
+                      try {
+                        await createWalkinGraph(zone.id);
+                        await createAutoHotspots(zone.id);
+                      } catch {}
+                    }, 800);
+                    stopCamera();
+                    setVideoBlob(null);
+                    setVideoThumbnail(null);
+                    setView('timeline');
+                  } catch (e: any) {
+                    showToast('Błąd ekstrakcji', e.message, 'error');
+                  } finally {
+                    setIsExtracting(false);
+                  }
+                }}
+                className="px-4 py-2.5 rounded-full bg-white text-zinc-900 hover:bg-zinc-100 disabled:opacity-50 text-xs font-bold flex items-center gap-1.5 shadow-xl"
+              >
+                {isExtracting ? 'Analiza...' : `Wyodrębnij Walk-In (${Math.min(6, Math.ceil((videoBlob.size / (1024*1024)) * 2) || 4)} pkt)`}
+              </button>
+            </div>
+            <span className="text-[10px] text-white/70 bg-black/50 px-2 py-0.5 rounded-full">CPU: ostrość + pHash dedup, bez GPU</span>
           </div>
         )}
       </div>
