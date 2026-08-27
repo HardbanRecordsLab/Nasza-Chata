@@ -44,7 +44,7 @@ export async function handleScanHandwritten(body: ScanHandwrittenRequest) {
   const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
   const promptText = mode === 'receipt'
-    ? `Przeanalizuj to zdjęcie paragonu ze sklepu. Wyciągnij łączną kwotę (amount jako liczba), nazwę sklepu lub opis (note), datę jeśli widoczna (YYYY-MM-DD), oraz kategorię. Zwróć wyłącznie poprawny obiekt JSON: {"amount": number, "note": string, "category": string, "date": string}`
+    ? `Przeanalizuj to zdjęcie paragonu ze sklepu. Wyciągnij łączną kwotę (amount jako liczba), nazwę sklepu lub opis (note), datę jeśli widoczna (YYYY-MM-DD), kategorię (Spożywcze & Dom, Chemia, Inne) oraz listę pozycji (items: [{name, quantity, price, category}]) dla spiżarni. Zwróć wyłącznie poprawny obiekt JSON: {"amount": number, "note": string, "category": string, "date": string, "items": [{"name": string, "quantity": string, "price": number, "category": string}]}`
     : `Przeanalizuj to zdjęcie odręcznej kartki z listą zadań lub zakupów domowych. Wyodrębnij pozycje. Dla każdej pozycji określ: name (nazwa), category ('cleaning'|'wood'|'stove'|'garden'|'shopping'|'dishes'|'laundry'|'plants'), frequency ('daily'|'twice_weekly'|'weekly'|'monthly'), room (pomieszczenie).
 Zwróć wyłącznie poprawny obiekt JSON: {"items": [{"name": string, "category": string, "frequency": string, "room": string}]}`;
 
@@ -74,7 +74,7 @@ Zwróć wyłącznie poprawny obiekt JSON: {"items": [{"name": string, "category"
     }
   } catch {
     parsedData = mode === 'receipt'
-      ? { amount: 0, note: 'Nie rozpoznano paragonu', category: 'Spożywcze & Dom', date: new Date().toISOString().split('T')[0] }
+      ? { amount: 0, note: 'Nie rozpoznano paragonu', category: 'Spożywcze & Dom', date: new Date().toISOString().split('T')[0], items: [] }
       : { items: [{ name: 'Nowe zadanie z kartki', category: 'cleaning', frequency: 'weekly', room: 'Dom' }] };
   }
 

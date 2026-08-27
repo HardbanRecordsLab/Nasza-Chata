@@ -17,25 +17,33 @@ import {
   TrendingUp,
   Tag,
   Loader2,
+  Barcode,
 } from 'lucide-react';
 import { ScanReceiptModal } from '../modals/ScanReceiptModal';
+import { BarcodeScannerModal } from '../modals/BarcodeScannerModal';
 
 export const ShoppingView: React.FC = () => {
   const {
     currentProfile,
     shoppingItems,
     expenses,
+    pantryItems,
+    budgetLimits,
     addShoppingItem,
     toggleShoppingItem,
     deleteShoppingItem,
     finishShoppingWithCart,
     addExpense,
     deleteExpense,
+    addPantryItem,
+    deletePantryItem,
+    setBudgetLimit,
     showToast,
   } = useChata();
 
-  const [activeTab, setActiveTab] = useState<'list' | 'calculator' | 'expenses'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'calculator' | 'expenses' | 'pantry' | 'budget'>('list');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
 
   // New shopping item form
   const [newItemName, setNewItemName] = useState('');
@@ -161,6 +169,19 @@ export const ShoppingView: React.FC = () => {
             boughtById: currentProfile.id,
             boughtByName: currentProfile.name,
           });
+          // Spiżarnia z paragonu
+          if (Array.isArray(data.items) && data.items.length > 0) {
+            data.items.forEach((it: any) => {
+              addPantryItem({
+                name: it.name || 'Produkt',
+                category: it.category || data.category || 'Spożywcze',
+                quantity: it.quantity || '1 szt.',
+                unit: 'szt.',
+                lowThreshold: 1,
+              });
+            });
+            showToast('Spiżarnia', `Dodano ${data.items.length} produktów z paragonu`, 'success');
+          }
           showToast('Zeskanowano paragon!', `Dodano wydatek ${data.amount} PLN (${data.note || 'Sklep'})`, 'success');
           setActiveTab('expenses');
         } else {
@@ -212,11 +233,13 @@ export const ShoppingView: React.FC = () => {
         </div>
 
         {/* Tab Buttons */}
-        <div className="bg-[#78350F]/5 p-1 rounded-full flex items-center border border-[#78350F]/10 w-full sm:w-auto">
+        <div className="bg-[#78350F]/5 p-1 rounded-full flex items-center border border-[#78350F]/10 w-full sm:w-auto overflow-x-auto">
           {[
             { id: 'list', label: 'Lista potrzeb', count: pendingItems.length },
             { id: 'calculator', label: '🛒 W sklepie', count: cartItems.length > 0 ? cartItems.length : undefined },
-            { id: 'expenses', label: 'Wydatki & Paragony' },
+            { id: 'expenses', label: 'Wydatki' },
+            { id: 'pantry', label: 'Spiżarnia', count: pantryItems.length },
+            { id: 'budget', label: 'Limity' },
           ].map(t => (
             <button
               key={t.id}
@@ -283,6 +306,13 @@ export const ShoppingView: React.FC = () => {
                 <Plus className="w-4 h-4" />
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsBarcodeOpen(true)}
+              className="mt-2 w-full py-2 bg-white border border-[#78350F]/15 hover:bg-[#FDFCF0] text-[#78350F] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
+            >
+              <Barcode className="w-4 h-4 text-[#D97706]" /> Skanuj kod kreskowy (dodaj produkt)
+            </button>
           </form>
 
           {/* Pending Shopping Items */}
@@ -654,6 +684,118 @@ export const ShoppingView: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 4: SPIŻARNIA — z paragonów */}
+      {activeTab === 'pantry' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-[32px] border border-[#78350F]/10 p-5 shadow-xs">
+            <h3 className="text-sm font-bold text-[#2D4F1E] flex items-center gap-2">
+              <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">🥫</span>
+              Spiżarnia — co jest w domu
+              <span className="text-[11px] font-normal text-[#78350F]/60">z paragonów + ręcznie</span>
+            </h3>
+            <p className="text-[11px] text-[#78350F]/70 mt-1">Produkty z paragonów trafiają tu automatycznie. Niski stan gdy &lt; próg.</p>
+          </div>
+
+          <div className="bg-white rounded-[32px] border border-[#78350F]/10 p-4 shadow-xs">
+            <div className="flex gap-2 mb-3">
+              <input
+                id="pantry-name"
+                placeholder="Produkt, np. Mleko"
+                className="flex-1 px-3 py-2 bg-[#FDFCF0] border border-[#78350F]/15 rounded-xl text-xs"
+              />
+              <input id="pantry-qty" placeholder="Ilość, np. 2 szt." defaultValue="1 szt." className="w-28 px-3 py-2 bg-[#FDFCF0] border border-[#78350F]/15 rounded-xl text-xs" />
+              <button
+                onClick={() => {
+                  const nameEl = document.getElementById('pantry-name') as HTMLInputElement;
+                  const qtyEl = document.getElementById('pantry-qty') as HTMLInputElement;
+                  if (!nameEl?.value.trim()) return;
+                  addPantryItem({ name: nameEl.value.trim(), category: 'Spożywcze', quantity: qtyEl.value || '1 szt.' });
+                  nameEl.value = '';
+                }}
+                className="px-4 py-2 bg-[#2D4F1E] text-white rounded-xl text-xs font-bold"
+              >
+                Dodaj
+              </button>
+            </div>
+            <div className="space-y-2 max-h-[320px] overflow-y-auto">
+              {pantryItems.length === 0 ? (
+                <div className="text-center py-6 text-xs text-[#78350F]/60">Spiżarnia pusta — zeskanuj paragon lub dodaj ręcznie.</div>
+              ) : (
+                pantryItems.map(item => {
+                  const isLow = parseInt(item.quantity) <= (item.lowThreshold || 1);
+                  return (
+                    <div key={item.id} className={`p-3 rounded-2xl border flex items-center justify-between gap-2 ${isLow ? 'bg-amber-50 border-amber-200' : 'bg-[#FDFCF0] border-[#78350F]/10'}`}>
+                      <div>
+                        <div className="text-xs font-bold flex items-center gap-1.5">
+                          {item.name} {isLow && <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full">Niski stan!</span>}
+                        </div>
+                        <div className="text-[11px] text-[#78350F]/60">{item.category} • {item.quantity} {item.expiryDate && `• ważne do ${item.expiryDate}`}</div>
+                      </div>
+                      <button onClick={() => deletePantryItem(item.id)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: LIMITY BUDŻETOWE — z paragonów */}
+      {activeTab === 'budget' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-[32px] border border-[#78350F]/10 p-5 shadow-xs">
+            <h3 className="text-sm font-bold text-[#2D4F1E] flex items-center gap-2">
+              <span className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">💰</span>
+              Limity budżetowe per kategoria
+            </h3>
+            <p className="text-[11px] text-[#78350F]/70 mt-1">Ustaw miesięczny limit — pasek i alert gdy paragony go przekroczą.</p>
+          </div>
+
+          <div className="bg-white rounded-[32px] border border-[#78350F]/10 p-4 shadow-xs space-y-3">
+            {['Spożywcze & Dom', 'Chemia', 'Inne'].map(cat => {
+              const limit = budgetLimits[cat]?.limit || 0;
+              const spent = expenses.filter(e => e.category === cat && new Date(e.date).getMonth() === new Date().getMonth()).reduce((s, e) => s + e.amount, 0);
+              const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
+              const over = limit > 0 && spent > limit;
+              return (
+                <div key={cat} className={`p-3 rounded-2xl border ${over ? 'bg-red-50 border-red-200' : 'bg-[#FDFCF0] border-[#78350F]/10'}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold">{cat}</span>
+                    <span className="text-[11px] font-mono font-bold">{spent.toFixed(2)} / {limit || '—'} zł</span>
+                  </div>
+                  <div className="w-full h-2 bg-white border border-[#78350F]/10 rounded-full overflow-hidden">
+                    <div className={`h-full ${over ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      type="number"
+                      placeholder="Limit zł/mies."
+                      defaultValue={limit || ''}
+                      id={`budget-${cat}`}
+                      className="flex-1 px-2 py-1.5 bg-white border border-[#78350F]/15 rounded-xl text-xs"
+                    />
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById(`budget-${cat}`) as HTMLInputElement;
+                        const v = parseFloat(el.value);
+                        if (!isNaN(v) && v > 0) setBudgetLimit(cat, v);
+                      }}
+                      className="px-3 py-1.5 bg-[#2D4F1E] text-white rounded-xl text-xs font-bold"
+                    >
+                      Zapisz
+                    </button>
+                  </div>
+                  {over && <div className="text-[11px] text-red-600 font-bold mt-1">⚠️ Przekroczono limit o {(spent - limit).toFixed(2)} zł!</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {isScannerOpen && (
         <ScanReceiptModal
           onClose={() => setIsScannerOpen(false)}
@@ -661,6 +803,10 @@ export const ShoppingView: React.FC = () => {
             showToast('Zapisano z paragonu', `Zaksięgowano ${total.toFixed(2)} zł (${merchant})`, 'success');
           }}
         />
+      )}
+
+      {isBarcodeOpen && (
+        <BarcodeScannerModal onClose={() => setIsBarcodeOpen(false)} />
       )}
     </div>
   );

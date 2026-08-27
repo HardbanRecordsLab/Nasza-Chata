@@ -8,7 +8,7 @@ interface ScanReceiptModalProps {
 }
 
 export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({ onClose, onReceiptParsed }) => {
-  const { showToast, addExpense, currentProfile } = useChata();
+  const { showToast, addExpense, addPantryItem, budgetLimits, currentProfile } = useChata();
   const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -73,12 +73,14 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({ onClose, onR
 
       const data = await res.json();
 
+      const items = Array.isArray(data.items) ? data.items : [];
       const result = {
         total: typeof data.amount === 'number' ? data.amount : parseFloat(data.amount) || 0,
-        itemsCount: data.itemsCount || 1,
+        itemsCount: items.length || data.itemsCount || 1,
         merchant: data.note || data.merchant || 'Nieznany sklep',
         date: data.date || new Date().toISOString().split('T')[0],
         category: data.category || 'Spożywcze & Dom',
+        items,
       };
 
       setScanResult(result);
@@ -105,6 +107,29 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({ onClose, onR
       boughtById: currentProfile.id,
       boughtByName: currentProfile.name,
     });
+
+    // Spiżarnia — zapisz pozycje z paragonu
+    if (Array.isArray(scanResult.items) && scanResult.items.length > 0) {
+      scanResult.items.forEach((it: any) => {
+        addPantryItem({
+          name: it.name || 'Produkt',
+          category: it.category || scanResult.category || 'Spożywcze',
+          quantity: it.quantity || '1 szt.',
+          unit: it.unit || 'szt.',
+          lowThreshold: 1,
+          expiryDate: undefined,
+        });
+      });
+      showToast('Spiżarnia zaktualizowana', `Dodano ${scanResult.items.length} produktów z paragonu`, 'success');
+    }
+
+    // Limity budżetowe — sprawdź po zapisie
+    const limit = budgetLimits[scanResult.category || 'Spożywcze & Dom'];
+    if (limit) {
+      // budget check will be shown in ShoppingView/BudgetWidget, but also toast here
+      showToast('Limit budżetowy', `Kategoria ${scanResult.category}: limit ${limit.limit} zł`, 'info');
+    }
+
     onReceiptParsed(scanResult.total, scanResult.itemsCount, scanResult.merchant);
     onClose();
   };
@@ -175,10 +200,29 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({ onClose, onR
                 <span className="text-zinc-500 font-medium">Produkty</span>
                 <span className="font-bold text-zinc-900">{scanResult.itemsCount} szt.</span>
               </div>
+              {Array.isArray(scanResult.items) && scanResult.items.length > 0 && (
+                <div className="pb-3 border-b border-zinc-200 border-dashed">
+                  <div className="text-xs font-bold text-zinc-600 mb-1">Pozycje → Spiżarnia:</div>
+                  <div className="space-y-1 max-h-[80px] overflow-y-auto">
+                    {scanResult.items.slice(0, 5).map((it: any, i: number) => (
+                      <div key={i} className="flex justify-between text-xs bg-white px-2 py-1 rounded-lg border">
+                        <span>{it.name} {it.quantity && `(${it.quantity})`}</span>
+                        <span className="font-bold">{it.price ? `${it.price.toFixed(2)} zł` : ''}</span>
+                      </div>
+                    ))}
+                    {scanResult.items.length > 5 && <div className="text-[10px] text-zinc-500">+{scanResult.items.length - 5} więcej…</div>}
+                  </div>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-zinc-500 font-medium text-lg">Suma całkowita</span>
                 <span className="font-extrabold text-2xl text-emerald-600">{scanResult.total.toFixed(2)} zł</span>
               </div>
+              {budgetLimits[scanResult.category] && (
+                <div className="text-[11px] bg-amber-50 border border-amber-200 text-amber-700 px-2 py-1 rounded-lg">
+                  Limit {scanResult.category}: {budgetLimits[scanResult.category].limit} zł/mies. — zostanie zaktualizowany po zapisie.
+                </div>
+              )}
             </div>
 
             <button
