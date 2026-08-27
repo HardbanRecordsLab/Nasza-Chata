@@ -4,6 +4,9 @@ import { useChata } from '../../context/ChataContext';
 import { isTaskScheduledOnDate } from '../../utils/recurrenceEngine';
 import { extractKeyFrames } from '../../utils/videoFrameExtractor';
 import { hashImageData, hammingDistance } from '../../utils/imageHash';
+import { stitchPanorama } from '../../utils/panoramaStitcher';
+import { format } from 'date-fns';
+import { pl } from 'date-fns/locale';
 import {
   X,
   Camera,
@@ -59,6 +62,7 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
   const [walkinEntry, setWalkinEntry] = useState<VisualEntry | null>(null);
   const [isBuildingWalkin, setIsBuildingWalkin] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isStitching, setIsStitching] = useState(false);
 
   // Capture flow state
   const [captureMode, setCaptureMode] = useState<'photo' | 'video'>('photo');
@@ -341,6 +345,52 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
     setView('timeline');
     showToast('Zapisano wpisy wizualne', `${dedupedPhotos.length + (vBlob ? 1 : 0)} wpisów (CPU dedup)`, 'success');
   }, [capturedPhotos, videoBlob, videoThumbnail, zone.id, captureAngles, currentProfile, addVisualEntry, showToast]);
+
+  const handleCreatePanorama = useCallback(async () => {
+    const photoEntries = zone.entries.filter(e => e.mediaType === 'photo').slice(0, 3);
+    if (photoEntries.length < 2) {
+      showToast('Za mało zdjęć', 'Potrzeba min 2 zdjęć do panoramy', 'warning');
+      return;
+    }
+    setIsStitching(true);
+    showToast('Panorama CPU', 'Stitching 2-3 zdjęć (canvas, bez GPU)...', 'info');
+    try {
+      const dataUrls = photoEntries.map(e => e.mediaUrl);
+      const stitched = await stitchPanorama(dataUrls);
+      if (!stitched) {
+        showToast('Nie udało się połączyć', 'Utworzono osobne punkty spaceru (zgodnie z blueprint)', 'warning');
+        return;
+      }
+      // upload stitched panorama
+      let mediaUrl = stitched;
+      try {
+        const filename = `panorama-${zone.id}-${Date.now()}.jpg`;
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: stitched, filename, folder: `visual-zones/${zone.id}`, mimeType: 'image/jpeg' }),
+        });
+        if (res.ok) {
+          const { url } = await res.json();
+          mediaUrl = url;
+        }
+      } catch {}
+      addVisualEntry(zone.id, {
+        capturedAt: new Date().toISOString(),
+        capturedById: currentProfile.id,
+        capturedByName: currentProfile.name,
+        mediaType: 'photo',
+        mediaUrl,
+        angleLabel: 'Panorama 360°',
+        caption: 'Panorama CPU (bez GPU) — stitched',
+      });
+      showToast('Panorama gotowa', 'Dodano wpis Panorama 360°', 'success');
+    } catch (e: any) {
+      showToast('Błąd panoramy', e.message, 'error');
+    } finally {
+      setIsStitching(false);
+    }
+  }, [zone.entries, zone.id, currentProfile, addVisualEntry, showToast]);
 
   // Handle image click for hotspot
   const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
@@ -913,6 +963,34 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
             ))}
           </div>
         )}
+
+        {/* Faza 3: Panorama CPU + wersjonowanie */}
+        <div className="px-5 py-3 border-b border-white/5 bg-white/[0.02] flex flex-col gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
+            {zone.walkinVersion && <span className="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded-full font-bold">Walk-In V{zone.walkinVersion} • {zone.viewpointLinks?.length || 0} links</span>}
+            {zone.entries.filter(e => e.mediaType === 'photo').length >= 2 && (
+              <button
+                disabled={isStitching}
+                onClick={handleCreatePanorama}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/15 disabled:opacity-50 text-white rounded-full text-[11px] font-bold flex items-center gap-1.5 border border-white/10"
+              >
+                {isStitching ? 'Stitching...' : 'Panorama CPU (2-3 zdjęcia)'}
+              </button>
+            )}
+            {zone.versions && zone.versions.length > 0 && (
+              <span className="text-[11px] text-zinc-500">{zone.versions.length} wersji • ostatnia {zone.versions[zone.versions.length-1]?.createdAt ? format(new Date(zone.versions[zone.versions.length-1].createdAt), 'd MMM HH:mm', { locale: pl }) : ''}</span>
+            )}
+          </div>
+          {zone.versions && zone.versions.length > 1 && (
+            <div className="flex gap-1.5 overflow-x-auto">
+              {zone.versions.slice(-6).map(v => (
+                <span key={v.version} className="px-2 py-1 bg-zinc-800 border border-white/10 rounded-full text-[10px] font-mono text-zinc-300 whitespace-nowrap">
+                  V{v.version}: {v.linksCount}L/{v.entriesCount}W • {format(new Date(v.createdAt), 'd MMM', { locale: pl })}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Timeline content */}
         <div className="flex-1 overflow-y-auto p-5">

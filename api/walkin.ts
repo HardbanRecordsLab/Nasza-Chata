@@ -95,9 +95,37 @@ async function handleCreateViewpoints(body: any, res: Response) {
     }
   }
 
+  // versioning: save previous as snapshot
+  if (!zone.versions) zone.versions = [];
+  if (zone.viewpointLinks && zone.viewpointLinks.length > 0) {
+    const prevHotspots = (zone.entries || []).reduce((s: number, e: any) => s + (e.tags?.filter((t: any) => t.targetEntryId)?.length || 0), 0);
+    zone.versions.push({
+      version: zone.walkinVersion || 1,
+      createdAt: zone.walkinUpdatedAt || now,
+      createdById: 'system',
+      linksCount: zone.viewpointLinks.length,
+      entriesCount: (zone.entries || []).length,
+      hotspotsCount: prevHotspots,
+      note: `V${zone.walkinVersion || 1}: ${zone.viewpointLinks.length} links`,
+    });
+    // keep last 10
+    if (zone.versions.length > 10) zone.versions = zone.versions.slice(-10);
+  }
+
   zone.viewpointLinks = links;
   zone.walkinVersion = (zone.walkinVersion || 0) + 1;
   zone.walkinUpdatedAt = now;
+  // push new version
+  zone.versions.push({
+    version: zone.walkinVersion,
+    createdAt: now,
+    createdById: 'system',
+    linksCount: links.length,
+    entriesCount: deduped.length,
+    hotspotsCount: 0,
+    note: `V${zone.walkinVersion}: utworzono graf`,
+  });
+  if (zone.versions.length > 10) zone.versions = zone.versions.slice(-10);
 
   await saveDbState({ visualZones: zones });
 

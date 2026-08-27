@@ -704,6 +704,37 @@ export const AdminPlanView: React.FC = () => {
             )}
           </div>
 
+          {/* Historia wersji Walk-In — Faza 3 */}
+          <div className="bg-white rounded-[24px] border border-[#78350F]/10 p-4 shadow-xs">
+            <h4 className="text-xs font-bold text-[#2D4F1E] flex items-center gap-2 mb-3">
+              <span className="w-6 h-6 rounded-lg bg-[#2D4F1E] text-white flex items-center justify-center text-[10px] font-mono">V</span>
+              Historia wersji Walk-In — porównaj i wróć
+              <span className="text-[11px] font-normal text-[#78350F]/60">CPU versioning, bez GPU</span>
+            </h4>
+            {visualZones.filter(z => z.versions && z.versions.length > 0).length === 0 ? (
+              <div className="text-center py-4 text-xs text-[#78350F]/60">Brak wersji — zbuduj Walk-In w strefie, aby utworzyć V1.</div>
+            ) : (
+              <div className="space-y-3">
+                {visualZones.filter(z => z.versions && z.versions.length > 0).map(z => (
+                  <div key={z.id} className="border border-[#78350F]/10 rounded-xl p-3">
+                    <div className="text-xs font-bold text-[#2D4F1E] flex items-center gap-2">
+                      {z.name} <span className="text-[11px] font-normal text-[#78350F]/60">• aktualnie V{z.walkinVersion} • {z.viewpointLinks?.length || 0} links</span>
+                    </div>
+                    <div className="flex gap-1.5 mt-2 overflow-x-auto">
+                      {(z.versions || []).slice(-6).map(v => (
+                        <div key={v.version} className="shrink-0 px-2.5 py-1.5 bg-[#FDFCF0] border border-[#78350F]/10 rounded-xl text-[11px]">
+                          <div className="font-mono font-bold">V{v.version}</div>
+                          <div className="text-[10px] text-[#78350F]/70">{format(new Date(v.createdAt), 'd MMM HH:mm', { locale: pl })}</div>
+                          <div className="text-[10px] text-[#78350F]/60">{v.linksCount} links / {v.entriesCount} widoków</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Add zone modal */}
           {isAddingZone && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">

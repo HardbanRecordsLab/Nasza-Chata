@@ -180,6 +180,17 @@ export interface ViewpointLink {
   createdAt: string;
 }
 
+export interface SpaceVersion {
+  version: number;
+  createdAt: string;
+  createdById: string;
+  createdByName?: string;
+  linksCount: number;
+  entriesCount: number;
+  hotspotsCount: number;
+  note?: string;
+}
+
 export interface VisualZone {
   id: string;
   name: string;
@@ -190,6 +201,8 @@ export interface VisualZone {
   viewpointLinks?: ViewpointLink[]; // walk-in graph edges
   walkinVersion?: number; // versioning V1, V2...
   walkinUpdatedAt?: string;
+  versions?: SpaceVersion[]; // historia V1..Vn
+  panoramas?: VisualEntry[]; // stitched panoramas (CPU)
 }
 
 export interface VisualEntry {
