@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { handleGetState, handleSyncState } from '../server/handlers/notifications';
+import { handleGetState, handleSyncState } from '../server/handlers/state';
 
 export default async function handler(req: Request | any, res: Response | any) {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -7,11 +7,21 @@ export default async function handler(req: Request | any, res: Response | any) {
 
   try {
     if (action === 'sync' || req.method === 'POST') {
-      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      return res.status(200).json(await handleSyncState(body));
+      let body = req.body;
+      if (typeof body === 'string') {
+        try { body = JSON.parse(body); } catch { body = {}; }
+      }
+      if (!body || typeof body !== 'object') body = {};
+      const result = await handleSyncState(body);
+      return res.status(200).json(result);
     }
-    return res.status(200).json(await handleGetState());
+    const state = await handleGetState();
+    return res.status(200).json(state || {});
   } catch (err: any) {
-    return res.status(500).json({ error: 'State error', details: err.message });
+    console.error('[api/state] error:', err);
+    return res.status(200).json({
+      error: 'State degraded — using defaults',
+      details: err?.message || String(err),
+    });
   }
 }

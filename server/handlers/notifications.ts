@@ -1,17 +1,4 @@
-import { getDbState, saveDbState } from '../db';
 import { sendWebPushNotification, getVapidPublicKey } from '../pushService';
-
-// --- State Sync ---
-export async function handleGetState() {
-  return await getDbState();
-}
-
-export async function handleSyncState(incoming: any) {
-  if (incoming) {
-    await saveDbState(incoming);
-  }
-  return { status: 'success', message: 'Zsynchronizowano stan bazy.' };
-}
 
 // --- Push Subscriptions ---
 export async function handleSubscribe(profileId: string, subscription: any) {

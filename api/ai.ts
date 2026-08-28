@@ -29,11 +29,12 @@ export default async function handler(req: Request | any, res: Response | any) {
       case 'chat':
         return await handleChat(body, res);
       case 'scan-handwritten':
-        return res.status(200).json(await handleScanHandwritten(body));
+      case 'scan-receipt':
+        return res.status(200).json(await handleScanHandwritten({ ...body, mode: 'receipt' }));
       case 'scan-chores-vision':
         return await handleScanChoresVision(body, res);
       default:
-        return res.status(400).json({ error: 'Unknown action. Use ?action=chat|scan-handwritten|scan-chores-vision' });
+        return res.status(400).json({ error: 'Unknown action. Use ?action=chat|scan-receipt|scan-chores-vision' });
     }
   } catch (err: any) {
     return res.status(500).json({ error: 'AI error', details: err.message });

@@ -298,7 +298,7 @@ export const HouseOverviewView: React.FC = () => {
                     {woodInventory.estimatedM3} m³ / {woodInventory.totalCapacityM3} m³
                   </h3>
                   <p className="text-xs text-[#FDFCF0]/80 mt-1">
-                    Gatunki: <span className="font-semibold text-amber-200">{woodInventory.woodTypes.join(', ')}</span> • {woodInventory.seasonedStatus}
+                    Gatunki: <span className="font-semibold text-amber-200">{(woodInventory.woodTypes || []).join(', ') || 'Brak danych'}</span> • {woodInventory.seasonedStatus || ''}
                   </p>
                 </div>
 

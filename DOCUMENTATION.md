@@ -1,579 +1,291 @@
-# Nasza Chata — Dokumentacja
+# Nasza Chata — Dokumentacja techniczna
+
+> Dokumentacja wygenerowana na podstawie bezpośredniego odczytu kodu źródłowego w tym repozytorium. Wszystkie PIN-y, nazwy endpointów, modele AI i zmienne środowiskowe pochodzą z plików źródłowych (`src/constants/initialData.ts`, `api/*.ts`, `.env.example`), nie z ogólnej wiedzy.
+
+---
 
 ## Spis treści
-1. [Architektura](#architektura)
-2. [Profile i dostęp](#profile-i-dostęp)
-3. [Zakładki aplikacji](#zakładki-aplikacji)
-   - [Dzisiaj (Today)](#1-dzisiaj-today)
-   - [Kalendarz](#2-kalendarz)
-   - [Zakupy](#3-zakupy)
-   - [Dom](#4-dom)
-   - [Plan (Admin)](#5-plan-admin)
-4. [Funkcje wspólne](#funkcje-wspólne)
-5. [Panel Wspólny i Panel Zarządzanie](#panel-wspólny-i-panel-zarządzanie)
-6. [Walk-In — wizualizacja przestrzenna](#walk-in--wizualizacja-przestrzenna)
-7. [Spiżarnia i limity budżetowe](#spiżarnia-i-limity-budżetowe)
-8. [Tryb nieobecność](#tryb-nieobecność)
-9. [Historia serwisów sprzętu](#historia-servisów-sprzętu)
-10. [Tablica wiadomości](#tablica-wiadomości)
-11. [Skaner paragonów i notatek](#skaner-paragonów-i-notatek)
-12. [Narzędzia AI](#narzędzia-ai)
-13. [Backend API](#backend-api)
-14. [Hosting i wdrożenie](#hosting-i-wdrożenie)
+1. [Stack technologiczny](#stack-technologiczny)
+2. [Profile i PIN-y](#profile-i-piny)
+3. [Architektura plików](#architektura-plików)
+4. [Baza danych](#baza-danych)
+5. [Backend API (11 endpointów)](#backend-api)
+6. [Zakładki główne](#zakładki-główne)
+7. [Funkcje AI](#funkcje-ai)
+8. [Walk-In i panorama (CPU)](#walk-in-i-panorama)
+9. [Powiadomienia i crony](#powiadomienia-i-crony)
+10. [Decyzje produktowe (audyt)](#decyzje-produktowe)
+11. [Wdrożenie](#wdrożenie)
 
 ---
 
-## Architektura
+## Stack technologiczny
 
-```
-Nasza Chata/
-├── src/
-│   ├── App.tsx                    # Root component, routing zakładek
-│   ├── context/
-│   │   └── ChataContext.tsx        # Centralny stan + localStorage + server sync
-│   ├── types.ts                    # Wszystkie interfejsy TypeScript
-│   ├── constants/
-│   │   └── initialData.ts          # Dane początkowe (profil, zadania, wydatki)
-│   ├── components/
-│   │   ├── views/
-│   │   │   ├── TodayView.tsx       # Dashboard główny
-│   │   │   ├── CalendarView.tsx     # Kalendarz rodzinny + sync
-│   │   │   ├── ShoppingView.tsx     # Lista + Spiżarnia + Limity + Skan kodów
-│   │   │   ├── HouseOverviewView.tsx # Dom: 7 pomieszczeń + serwisy
-│   │   │   └── AdminPlanView.tsx    # Panel Zarządzanie: przydziały + plan tygodniowy
-│   │   ├── modals/
-│   │   │   ├── VisualZoneModal.tsx  # Walk-In viewer + Panorama 360° + historia V
-│   │   │   ├── ScanHandwrittenModal.tsx # Skaner paragonów/notatek (Gemini AI)
-│   │   │   ├── PinModal.tsx          # Weryfikacja PIN profilu
-│   │   │   ├── SosModal.tsx          # Alert SOS
-│   │   │   ├── AddTaskModal.tsx      # Dodawanie zadań
-│   │   │   ├── AiAssistantModal.tsx  # Asystent AI (Gemini)
-│   │   │   ├── NotificationSettingsModal.tsx
-│   │   │   └── PwaWidgetModal.tsx     # Widżet na ekran główny
-│   │   ├── widgets/
-│   │   │   └── HomeScreenWidget.tsx  # Kompaktowy widget na drugi ekran/tablet
-│   │   ├── Header.tsx               # Nagłówek z profilem i akcjami
-│   │   └── BottomNav.tsx             # Nawigacja 5 zakładek
-│   └── utils/
-│       ├── recurrenceEngine.ts      # Silnik cykliczności zadań
-│       ├── imageHash.ts             # pHash + Hamming (CPU, bez GPU)
-│       ├── panoramaStitcher.ts       # Sklejanie panoramy (20% overlap, CPU)
-│       ├── videoFrameExtractor.ts    # Ekstrakcja klatek (bez GPU)
-│       └── notificationService.ts    # Web Push + Service Worker
-├── api/
-│   ├── state.ts                     # GET/POST całego stanu aplikacji
-│   ├── walkin.ts                    # Walk-In: viewpoint graph + auto-hotspots
-│   ├── ai/
-│   │   └── scan-handwritten.ts      # Gemini AI: OCR paragonów i notatek
-│   └── upload.ts                    # Upload zdjęć/wideo do Vercel Blob
-├── server/
-│   ├── db.ts                        # Vercel KV (Redis) lub in-memory fallback
-│   └── pushService.ts                # Web Push (VAPID)
-└── vercel.json                      # Routing + cron + Blob mounts
-```
+| Warstwa | Technologia | Plik |
+|---------|-----------|------|
+| Frontend | React 19 + TypeScript 5.8 | `src/App.tsx`, `package.json` |
+| Build | Vite 6.2 (build), `tsc` (lint) | `package.json:8`, `vite.config.ts` |
+| UI | Tailwind CSS 4.1 + lucide-react | `package.json` |
+| Backend | Vercel Serverless Functions (Node, Express-like) | `api/*.ts`, `vercel.json` |
+| Baza | PostgreSQL (`pg`) / Neon, fallback pamięć procesu | `server/db.ts` |
+| Storage | Vercel Blob (`@vercel/blob`) | `api/upload.ts` |
+| AI | Google Gemini (`@google/genai`), model `gemini-2.0-flash` | `api/ai.ts:6`, `server/handlers/scan-handwritten.ts:3` |
+| Push | Web Push (`web-push`), VAPID | `server/pushService.ts` |
+| Service Worker | PWA + Web Push client | `public/sw.js` |
 
-**Stack:**
-- Frontend: React + TypeScript + Vite + TailwindCSS
-- Backend: Vercel Serverless Functions (Hobby tier, max 12 functions)
-- Database: Vercel KV (Redis) z fallback in-memory
-- Storage: Vercel Blob (zdjęcia, wideo)
-- AI: Google Gemini API (server-side)
-- Push: Web Push (VAPID)
+**Ograniczenie Vercel Hobby:** max 12 serverless functions. Aktualnie używane: **11** (`api/health.ts`, `api/state.ts`, `api/ai.ts`, `api/export.ts`, `api/notifications.ts`, `api/walkin.ts`, `api/weather.ts`, `api/upload.ts`, `api/widget/today.ts`, `api/cron/daily-briefing.ts`, `api/cron/wood-supply-check.ts`).
 
 ---
 
-## Profile i dostęp
+## Profile i PIN-y
 
-### Profile domyślne
+Źródło: `src/constants/initialData.ts:3-37`
+
 | ID | Imię | Rola | PIN | Admin |
 |----|------|------|-----|-------|
-| `kamil` | Kamil | Administrator | `1234` | Tak |
-| `ilonka` | Ilona | — | `5678` | Nie |
-| `olivia` | Olivia | — | — | Nie |
+| `kamil` | Kamil | Gospodarz (Admin) | `1482` | Tak |
+| `ilona` | Ilona | Żona / Organizatorka | `2591` | Nie |
+| `olivia` | Olivia | Córka / Pomocniczka | `3670` | Nie |
 
-- Każdy profil ma własny kolor, awatar, strefę.
-- Przełączanie profilu przez kliknięcie awatara w nagłówku.
-- Jeśli profil ma PIN — wymagane podanie kodu przed przełączeniem.
-- Panel **Zarządzanie** widoczny tylko dla Kamila (admin).
-
----
-
-## Zakładki aplikacji
-
-### 1. Dzisiaj (Today)
-
-Centralny dashboard — jedno spojrzenie na wszystko na dziś.
-
-**Zawartość:**
-- **Pogoda** — aktualna pogoda + prognoza na jutro (WeatherAPI)
-- **Kalendarz mini** — siatka miesiąca z postępem czystości per dzień (kropki/kreski)
-- **Zadania na dziś** — lista obowiązków z daną częstotliwością, posortowana wg priorytetu:
-  - Ikona pogody przy zadaniach wrażliwych na warunki (np. koszenie)
-  - Kolor kropki: zielona (wykonane) → pomarańczowa (zbliża się termin) → czerwona (po terminie)
-  - Konfetti przy odhaczeniu zadania
-- **Skrót do Tablicy** — panel wspólny z wiadomościami
-- **Tryb nieobecność** — przybranie самолёта (✈️), checklist przed wyjazdem
-- **SOS** — czerwony przycisk awarii
-- **AI Asystent** — przycisk z gwiazdką, otwiera czat z Gemini
-
-**Parametry URL:**
-- `?tab=today` / `?tab=calendar` / `?tab=shopping` / `?tab=house` / `?tab=plan`
-- `?widget=1` — tryb widżet (kompaktowy widget na drugi ekran)
-- `?action=sos` — otwiera modal SOS
+- Przełączanie profilu przez awatar w nagłówku (`Header.tsx`) → `PinModal.tsx` weryfikuje PIN.
+- Panel **Plan** (Admin) widoczny tylko dla `currentProfile.isAdmin || currentProfile.id === 'kamil'` (`App.tsx:148`).
+- `INITIAL_PROFILES` jest używane jako fallback, gdy `localStorage` nie ma zapisanych profili (`ChataContext.tsx:170-181`).
 
 ---
 
-### 2. Kalendarz
+## Architektura plików
 
-**Widok miesięczny:**
-- Siatka kalendarza z kolorowymi kropkami per dzień (oznaczają zadania danego dnia)
-- Kliknięcie dnia → lista zadań + wydarzeń tego dnia
-- Kolor kropki = średni Cleanliness Score (CS) dla danego dnia:
-  - Zielona: CS < 30 (wszystko czyste)
-  - Pomarańczowa: CS 30–70
-  - Czerwona: CS > 70 (zaniedbane)
+```
+src/
+  App.tsx                      # Root: 5 zakładek + globalne modale
+  context/ChataContext.tsx     # Centralny stan (useState), persist localStorage (debounce 1.5s), sync /api/state
+  types.ts                     # Wszystkie interfejsy
+  constants/initialData.ts     # 96 zadań, 3 profile, 0 wydatków, puste listy początkowe
+  utils/
+    recurrenceEngine.ts        # getOccurrencesForDate, calculateCleanlinessScore
+    imageHash.ts               # pHash + Hamming + Laplacian (CPU, bez GPU)
+    panoramaStitcher.ts        # stitchPanorama (canvas, 20% overlap)
+    videoFrameExtractor.ts     # extractKeyFrames (canvas, bez GPU)
+    notificationService.ts     # Web Push (VAPID) client, initServiceWorker
+  components/
+    views/                     # TodayView, CalendarView, ShoppingView, HouseOverviewView, AdminPlanView
+    modals/                    # 15 modalów (Pin, Sos, AddTask, AiAssistant, Scan*, VisualZone, itd.)
+    Header.tsx, BottomNav.tsx, ToastContainer.tsx
 
-**Wydarzenia rodzinne:**
-- Dodawanie wydarzeń (urodziny, wizyty, inne)
-- Kolorowe etykiety per typ
-- Synchronizacja z kalendarzem Google (opcjonalnie)
+api/
+  health.ts, state.ts, ai.ts, export.ts, notifications.ts, walkin.ts, weather.ts, upload.ts
+  widget/today.ts              # Endpoint dla widżetu PWA
+  cron/daily-briefing.ts       # Cron 6:00 UTC
+  cron/wood-supply-check.ts    # Cron pon 6:00 UTC
 
-**Silnik cykliczności:**
-Obsługuje wszystkie typy częstotliwości:
-| Typ | Logika |
-|-----|--------|
-| `daily` | Każdy dzień |
-| `every_other_day` | Co drugi dzień |
-| `twice_weekly` | 2x tygodniowo (Pn+Pt lub configurable) |
-| `weekly` | Co tydzień (ten sam dzień) |
-| `monthly` | Raz w miesiącu (ten sam dzień miesiąca) |
-
-Sezonowość: zadania mogą mieć `seasonStart` i `seasonEnd` (np. koszenie: 4–10).
-
----
-
-### 3. Zakupy
-
-**Lista zakupów:**
-- Dodawanie pozycji (nazwa, kategoria, szacunkowa cena, ilość)
-- Oznaczanie jako kupione
-- Podsumowanie kosztów w koszyku
-- Zakończenie zakupów → zapis wydatku + odhaczenie zadania „Zrobić zakupy"
-
-**Spiżarnia 🥫** (zakładka w widoku Zakupy):
-- Lista produktów w spiżarni z kategoriami
-- Prognoza: produkt świeży / kończy się / przeterminowany
-- Progi niskiego stanu → alert
-- Dodawanie pozycji ze zdjęciem lub bez
-
-**Limity budżetowe 💰** (zakładka w widoku Zakupy):
-- Ustawianie limitu per kategorię (np. „Spożywcze & Dom": 1500 zł/miesiąc)
-- Pasek postępu: wydano vs. limit
-- Alert przy przekroczeniu 80%
-- Import z paragonów (skaner)
-
-**Skaner kodów kreskowych 📷:**
-- Kamera → skanowanie kodu kreskowego produktu
-- Automatyczne rozpoznawanie produktu
-- Dodanie do listy zakupów lub spiżarni
+server/
+  db.ts                        # PostgreSQL pool + in-memory fallback
+  handlers/
+    state.ts                   # handleGetState / handleSyncState
+    notifications.ts           # handleGetVapidKey, handleSubscribe, handleSendPush, handleTestPush
+    scan-handwritten.ts        # handleScanHandwritten (receipt), handleScanChoresVision (chores)
+  pushService.ts               # Web Push send
+```
 
 ---
 
-### 4. Dom
+## Baza danych
 
- Wizualizacja **7 pomieszczeń** (dół + góra):
+Źródło: `server/db.ts`
 
-**Parter:**
-- Ganek
-- Kotłownia
-- Kuchnia
-- Łazienka
+- **Główna:** PostgreSQL przez `pg.Pool` (`server/db.ts:67`).
+- **Parametr połączenia:** `DATABASE_URL` lub `POSTGRES_URL` lub `POSTGRES_PRISMA_URL` (`server/db.ts:63-65`).
+- **Tabela:** `chata_store` (klucz `main_state`, kolumna `data JSONB`) + `chata_push_subscriptions` (`server/db.ts:89-103`).
+- **Fallback (brak `DATABASE_URL`):** stan w pamięci procesu (każdy cold start = pusty stan, chyba że `localStorage` na kliencie ma dane). `api/health.ts:11` zwraca `database: 'local-storage/memory'` w tym przypadku.
+- **Lokalny fallback:** `data/chata_db.json` (tylko dev, read-only w serverless).
 
-**Piętro:**
-- Sypialnia
-- Pokój Olivii
-- Przedpokój + Schody
-
-**Dla każdego pomieszczenia:**
-- Mini-galeria zdjęć (VisualZone entries)
-- Status czystości
-- Ostatnie zadania
-
-**Dodatkowe sekcje:**
-- **Drewno opałowe** — stan, zużycie dzienne, prognoza
-- **Sprzęt AGD/RTV** — rejestr z gwarancjami i terminami serwisów
-- **SOS** — zgłoszenia awarii z powiadomieniem
-- **Komenty do domu** — notatki ogólne
-
----
-
-### 5. Plan (Admin)
-
-Panel zarządzania — tylko dla Kamila.
-
-**Zakładki:**
-
-#### Przydziały
-- Lista wszystkich zadań
-- Dropdown z członkami rodziny → przypisanie zadania
-- Przypisanie = nadpisanie na dany tydzień (w planie tygodniowym)
-
-#### Plan tygodniowy
-- Widok tygodnia (Pn–Nd)
-- Siatka: osoby × dni → można wstawić zadanie per komórkę
-- Automatyczne generowanie na podstawie przydziałów
-- Przesuwanie między tygodniami
-
-#### Wizualizacja
-- Mini-mapa domu z kolorowymi hotspotami
-- Hotspot = pinezka na zdjęciu pomieszczenia
-- Kliknięcie → skok do powiązanego zadania
-
-#### Historia wersji
-- V1, V2, V3... — każda zmiana układu hotspotów zapisana jako wersja
-- Przywracanie poprzednich wersji
-- Data, autor, liczba hotspotów per wersja
-
----
-
-## Funkcje wspólne
-
-### Tablica wiadomości (Panel Wspólny)
-- Wspólna tablica ogłoszeń dla całej rodziny
-- Dodawanie wiadomości (do 280 znaków)
-- Przypinanie ważnych wiadomości (pin)
-- Sortowanie: pinned → najnowsze
-- Dostęp z **TodayView** i z modalu **VisualZoneModal**
-
-### Powiadomienia Push (Web Push)
-- Codzienna summarisches (wieczorna lub poranna)
-- Przypomnienia o zadaniach
-- Alerty serwisowe (zbliżające się terminy gwarancji)
-- Ciche godziny per profil
-- Włączanie/wyłączanie w `NotificationSettingsModal`
-
-### PWA — widżet na ekran główny
-- `?widget=1` → kompaktowy widok
-- Idealny na drugi ekran, tablet, smart home display
-- Skróty: +Zadanie, SOS, Otwórz appkę
-
-### Dodawanie zadań (AI assisted)
-- Modal `AddTaskModal`
-- Wpisz nazwę → asystent AI proponuje:
-  - Kategorię
-  - Częstotliwość
-  - Pomieszczenie
-  - Pogodowa wrażliwość
-  - Szacowany czas
-- Ręczna edycja przed zapisem
-
-### SOS Alert
-- Szybkie zgłoszenie awarii
-- Kto zgłosił, kiedy, jakie pomieszczenie
-- Status: aktywne / rozwiązane
-- Powiadomienie Web Push do rodziny
-
----
-
-## Panel Wspólny i Panel Zarządzanie
-
-### Panel Wspólny
-Dostępny z **TodayView** (skrót) i z **VisualZoneModal** (ikona tablicy). Zawiera:
-- Tablicę wiadomości (Board)
-- Mini-kalendarz
-- Ostatnie wydatki
-- Pogoda
-
-### Panel Zarządzanie
-Dostępny z zakładki **Plan** (tylko Kamil). Zawiera:
-- Przydziały zadań
-- Plan tygodniowy
-- Wizualizację domu z hotspotami
-- Historię wersji V1..Vn
-
----
-
-## Walk-In — wizualizacja przestrzenna
-
-`VisualZoneModal` — interaktywna eksploracja pomieszczeń.
-
-### Funkcje
-
-**Walk-In Phase 1–3 (CPU-only, bez GPU):**
-- `Phase 1` — Ekstrakcja klatek z wideo (bez GPU)
-- `Phase 2` — Tworzenie grafu viewpointów (pHash + Hamming, 20-point match threshold)
-- `Phase 3` — Auto-hotspoty na podstawie zmian między klatkami (Laplacian variance)
-
-**Panorama 360° (CPU):**
-- Sklejanie zdjęć w panoramę
-- 20% overlap między sąsiednimi klatkami
-- Filtry: Brightness, Contrast, Saturation (canvas)
-- Eksport jako V2, V3... (wersjonowanie)
-
-**Hotspoty nawigacji:**
-- Każdy hotspot może prowadzić do innego viewpointu (`targetEntryId`)
-- Strzałki nawigacji: ← → w viewerze
-- Kliknięcie pinezki → przeskok do powiązanego zdjęcia
-- Kolor pinezki = Cleanliness Score powiązanego zadania
-
-**Historia wersji:**
-- V1, V2, V3... — każdy eksport panoramy = nowa wersja
-- Snapshot viewpoint links per wersja
-- Przywracanie poprzednich wersji
-
-### Kolejka async
-- `startWalkinJob(zoneId)` — progres bar: queued → analyzing → extracting → finding-viewpoints → building-graph → creating-hotspots → ready
-- Job status widoczny w UI
-- Błędy nie fatalne (hotspot failure nie blokuje walk-in)
-
-### Endpointy API
-- `POST /api/walkin?action=create-viewpoints` — tworzenie grafu viewpointów
-- `POST /api/walkin?action=auto-hotspots` — automatyczne hotspoty
-
----
-
-## Spiżarnia i limity budżetowe
-
-### Spiżarnia 🥫
-- Dodawanie produktów (nazwa, ilość, kategoria, data ważności)
-- Kategorie: Nabiał, Mięso, Warzywa, Owoce, Konserwy, Przyprawy, Inne
-- Alerty przy niskim stanie (threshold per produkt)
-- Status: ✅ świeży / ⚠️ kończy się / ❌ przeterminowany
-
-### Limity 💰
-- Ustawianie limitu per kategorię wydatków
-- Okres: miesięczny
-- Pasek postępu z kolorami (zielony → pomarańczowy → czerwony)
-- Przekroczenie 80% → alert
-
-### Skaner kodów kreskowych 📷
-- Otwórz kamerę → nakieruj na kod kreskowy
-- Rozpoznanie produktu (stub: demo mode bez realnej bazy)
-- Dodanie do listy zakupów LUB spiżarni
-- Obsługa błędów kamery (fallback na ręczne wprowadzanie)
-
----
-
-## Tryb nieobecność
-
-Aktywacja z **TodayView** (przycisk ✈️).
-
-**Funkcje:**
-- Wybór daty wyjazdu i powrotu
-- Automatyczna checklist przed wyjazdem:
-  - Sprawdzić okna
-  - Zamknąć wodę
-  - Wyłączyć światła
-  - Podlać kwiaty
-  - Wylać wodę z butelek
-  - Zamrozić chleb
-  - Wyrzucić śmieci
-  - Sprawdzić termometr na zewnątrz
-- Zaznaczanie pozycji po wykonaniu
-- **Pauza zadań** — zadania cykliczne wstrzymane na czas nieobecności
-- Powiadomienie przy aktywacji / deaktywacji
-
----
-
-## Historia serwisów sprzętu
-
-**W `HouseOverviewView`** — sekcja „Serwis".
-
-**Dla każdego sprzętu (AGD/RTV):**
-- Data zakupu
-- Gwarancja (data końcowa)
-- Ostatni serwis
-- Następny serwis (np. przegląd kotła)
-- Historia serwisów:
-  - Data
-  - Notatka
-  - Koszt
-  - Następny termin
-
-**Alerty:**
-- Zbliżający się koniec gwarancji (30 dni)
-- Zbliżający się serwis (14 dni)
-
----
-
-## Tablica wiadomości
-
-Zob. **Funkcje wspólne → Tablica wiadomości**.
-
----
-
-## Skaner paragonów i notatek
-
-**`ScanHandwrittenModal`** — skaner paragonów i notatek odręcznych.
-
-**Flow:**
-1. Zrób zdjęcie (aparat lub galeria)
-2. Kompresja po stronie klienta
-3. Wysyłka do `POST /api/ai/scan-handwritten`
-4. Gemini AI odczytuje:
-   - Kwota
-   - Nota / tytuł
-   - Data
-   - Kategoria
-5. Podgląd wyniku → zapis jako wydatek LUB utworzenie zadań z notatki
-
-**Parametry:**
-- `imageBase64`: base64 skompresowanego zdjęcia
-- `mode`: `'receipt'` (paragon) lub `'handwritten'` (notatka)
-
-**Obsługa błędów:**
-- Brak GEMINI_API_KEY → fallback demo
-- Błąd sieci → toast błędu
-- Upload progress indicator
-
----
-
-## Narzędzia AI
-
-### Asystent AI (`AiAssistantModal`)
-- Czat z Gemini (model: `gemini-1.5-flash`)
-- Kontekst: current profile, today's tasks, recent expenses
-- Możliwości:
-  - Sugestie zadań
-  - Analiza wydatków
-  - Odpowiedzi na pytania o dom
-
-### Skaner paragonów
-- OCR paragonów (Gemini Vision)
-- Ekstrakcja kwoty, daty, kategorii
-
-### AI Task Suggestions
-- Przy tworzeniu zadania → propozycje AI:
-  - Kategoria
-  - Częstotliwość
-  - Pomieszczenie
-  - Pogodowa wrażliwość
-  - Szacowany czas
+**Ważne:** Stan aplikacji jest zawsze synchronizowany z `localStorage` (debounce 1.5s w `ChataContext.tsx:375-397`) — więc nawet bez bazy danych aplikacja działa na telefonie po pierwszym załadowaniu.
 
 ---
 
 ## Backend API
 
-### `GET/POST /api/state`
-Pełny stan aplikacji (profiles, tasks, completions, expenses, itd.).
-- `GET` — zwraca cały stan (dla hydrate na starcie)
-- `POST` — zapisuje stan (sync z localStorage)
+### GET/POST `/api/state`
+- `GET` → `handleGetState()` → zwraca cały `DatabaseSchema` (lub `{}` przy błędzie).
+- `POST` → `handleSyncState(body)` → zapisuje stan. Defensywnie: każde pole to `Array.isArray() ? incoming : memoryState` (`server/db.ts:168-188`).
+- Plik: `api/state.ts` + `server/handlers/state.ts`.
 
-### `POST /api/ai/scan-handwritten`
-```
-Body: { imageBase64: string, mode: 'receipt' | 'handwritten' }
-Response: { amount?: number, note?: string, date?: string, category?: string, items?: ScannedTaskProposal[], summary?: string }
-```
+### POST `/api/ai?action=...`
+- `chat` → asystent Gemini (fallback demo bez klucza).
+- `scan-receipt` → OCR paragonu (`handleScanHandwritten` z `mode: 'receipt'`). Zwraca `{ amount, note, category, date, items[] }`.
+- `scan-chores-vision` → OCR odręcznej listy zadań (`handleScanChoresVision`). Zwraca `{ items: ScannedTaskProposal[], summary, rawTranscription }`.
+- Plik: `api/ai.ts`, `server/handlers/scan-handwritten.ts`.
+- **Model:** `gemini-2.0-flash` (`api/ai.ts:6`).
 
-### `POST /api/walkin`
-```
-Body: { zoneId: string }
-Query: action=create-viewpoints | auto-hotspots
-Response: { message: string, viewpoints?: ViewpointLink[], hotspots?: RoomTag[] }
-```
+### GET `/api/export?action=...`
+- `calendar.ics` → eksport zadań do iCal (`api/export.ts:24-49`).
+- `backup.json` → pełny backup stanu jako JSON do pobrania (`api/export.ts:51-56`).
+- `yearly-chronicle` → kronika strefa × miesiąc (JSON lub HTML, `api/export.ts:58-84`).
 
-### `POST /api/upload`
-```
-FormData: file (image/video)
-Response: { url: string, thumbnailUrl?: string }
-```
+### GET/POST `/api/notifications?action=...`
+- `vapid-public-key` → klucz publiczny VAPID.
+- `subscribe` (POST) → zapis subskrypcji push.
+- `send-push` (POST) → wyślij push.
+- `test` (POST) → test push.
+- Plik: `api/notifications.ts` + `server/handlers/notifications.ts`.
 
-### `GET /api/backup`
-Eksport pełnego stanu jako JSON do pobrania.
+### POST `/api/walkin?action=...`
+- `create-viewpoints` → buduje graf viewpointów (liniowy + grupowanie kątów) (`api/walkin.ts:39-149`).
+- `auto-hotspots` → hotspoty nawigacyjne (`api/walkin.ts:151-210`).
+- `update-space` → nowa wersja po zmianie (`api/walkin.ts:212-231`).
+- `rollback-version` → przywracanie Vn (`api/walkin.ts:233-260`).
+- `panorama-attempt` → informacja, że stitch po stronie klienta (`api/walkin.ts:262-271`).
 
-### Cron endpoints
-- `GET /api/cron/daily-briefing` — codzienne podsumowanie (Web Push)
-- `GET /api/cron/wood-supply-check` — alert o stanie drewna
+### GET `/api/weather`
+- **Zawsze zwraca hardcoded symulację** (temp 21, 80% deszczu jutro, recommendation) (`api/weather.ts:4-17`). Brak integracji z zewnętrznym API.
+
+### POST `/api/upload`
+- `file` (base64) → zapis do Vercel Blob pod `folder/filename`. Fallback: zwraca `dataUrl` jako-is gdy brak `BLOB_READ_WRITE_TOKEN` (`api/upload.ts:27-30`).
+
+### GET `/api/widget/today`
+- JSON ze statusem dnia dla widżetu PWA (`api/widget/today.ts`).
+
+### GET `/api/health`
+- `{ status, time, aiReady, database }` (`api/health.ts`).
+
+### Crony (GET, wymagają `Authorization: Bearer ${CRON_SECRET}`)
+- `/api/cron/daily-briefing` → push z podsumowaniem dnia (6:00 UTC).
+- `/api/cron/wood-supply-check` → alert o niskim drewnie (pon 6:00 UTC).
 
 ---
 
-## Hosting i wdrożenie
+## Zakładki główne
 
-### Vercel Hobby (darmowy)
-- **Limit: 12 serverless functions** — aktualnie używane: 11
-  1. `api/state.ts`
-  2. `api/walkin.ts`
-  3. `api/ai/scan-handwritten.ts`
-  4. `api/upload.ts`
-  5. `api/backup.ts`
-  6–11. Crony i helpery
+### 1. Dzisiaj (`TodayView`)
+- Pogoda (symulowana, `api/weather.ts`).
+- Mini-kalendarz (siatka miesiąca, kropki = postęp czystości dnia, `TodayView.tsx` + `recurrenceEngine.ts`).
+- Zadania na dziś (sortowane wg `suggestedPriority` z `calculateCleanlinessScore`).
+- Skrót do Tablicy (BoardWidget), Tryb nieobecność (✈️), AI Asystent.
 
-### Zmienne środowiskowe (`.env`)
-```env
-# AI
-GEMINI_API_KEY=...
+### 2. Kalendarz (`CalendarView`)
+- Miesiąc z kropkami postępu.
+- Klik dzień → lista zadań + wydarzeń (`getOccurrencesForDate`).
+- Wydarzenia rodzinne (urodziny, wizyty) — `FamilyEvent[]` w `types.ts:350`.
 
-# Vercel KV (Redis)
-KV_REST_API_URL=...
-KV_REST_API_TOKEN=...
+### 3. Zakupy (`ShoppingView`)
+- Lista zakupów + koszyk + finishShoppingWithCart → wydatek.
+- **Spiżarnia** (`PantryItem[]`) — zakładka w widoku.
+- **Limity budżetowe** (`BudgetLimit`) — zakładka w widoku.
+- **Skaner kodów** (`BarcodeScannerModal.tsx`) — nakieruj kamerę na kod kreskowy.
+- **Skan paragonu** (`ScanReceiptModal.tsx`) → `/api/ai?action=scan-receipt`.
 
-# Vercel Blob
-BLOB_READ_WRITE_TOKEN=...
+### 4. Dom (`HouseOverviewView`)
+- Dynamiczne strefy wizualne (`VisualZone[]`) — tworzone przez użytkownika, brak sztywnej listy.
+- Stan drewutni (WoodInventory) — `woodInventory.woodTypes` z fallbackiem `[]` (`HouseOverviewView.tsx:301`).
+- Rejestr sprzętu (EquipmentItem) + historia serwisów (`EquipmentServiceEntry[]`).
+- SOS alerty.
 
-# Web Push
-VAPID_PUBLIC_KEY=...
-VAPID_PRIVATE_KEY=...
-VAPID_EMAIL=mailto:...
+### 5. Plan (Admin, `AdminPlanView`)
+- **Przydziały** — taskId → profileId (nadpisanie).
+- **Plan tygodniowy** — `WeeklyPlan.assignments` per tydzień (nie siatka osoby × dni).
+- **Wizualizacja** — mini-mapa z hotspotami.
+- **Historia wersji** — `SpaceVersion[]`, przywracanie Vn (`AdminPlanView.tsx:714-730`).
 
-# Weather (opcjonalne)
-WEATHER_API_KEY=...
+---
 
-# Google Calendar (opcjonalne)
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-```
+## Funkcje AI
 
-### Budowanie i deploy
+### Asystent (`AiAssistantModal.tsx` → `/api/ai?action=chat`)
+- Kontekst: liczba zadań, drewno, zakupy.
+- Bez `GEMINI_API_KEY`: odpowiedź demo (`api/ai.ts:50-54`).
+
+### Skaner paragonów (`ScanReceiptModal.tsx` → `/api/ai?action=scan-receipt`)
+- Zdjęcie → base64 → `handleScanHandwritten(imageBase64, mode: 'receipt')`.
+- Zwraca `amount`, `note`, `category`, `date`, `items[]` — `items` trafiają do spiżarni.
+- Bez klucza: demo z 2 przykładowymi pozycjami (`scan-handwritten.ts:33-41`).
+
+### Skaner odręcznej listy (`ScanHandwrittenModal.tsx`, `AddTaskModal.tsx` → `/api/ai?action=scan-chores-vision`)
+- Zdjęcie lodówki/kartki → `handleScanChoresVision(imageBase64, familyProfiles)`.
+- Zwraca `items: ScannedTaskProposal[]` — propozycje zadań do dodania.
+
+### Tryb demo
+Każdy endpoint AI sprawdza `process.env.GEMINI_API_KEY`. Gdy brak → `aiPowered: false` i przykładowe dane. Front to obsługuje (wyświetla "Tryb demo" zamiast rzeczywistego OCR).
+
+---
+
+## Walk-In i panorama
+
+Źródło: `api/walkin.ts`, `src/utils/panoramaStitcher.ts`, `src/utils/imageHash.ts`, `src/utils/videoFrameExtractor.ts`
+
+**CPU-only (brak GPU):**
+- `hashImageData` / `hammingDistance` — pHash + Hamming (dedup zdjęć, `imageHash.ts`).
+- `laplacianVariance` — ostrość klatki.
+- `extractKeyFrames` — klatki kluczowe z wideo (canvas, `videoFrameExtractor.ts`).
+- `stitchPanorama` — sklejanie 2-5 zdjęć z 20% overlap (canvas, `panoramaStitcher.ts:6-30`).
+
+**Przepływ:**
+1. Użytkownik dodaje wpisy do strefy (`VisualEntry[]`).
+2. `POST /api/walkin?action=create-viewpoints` → graf `ViewpointLink[]` (liniowy + kąty).
+3. `POST /api/walkin?action=auto-hotspots` → pinezki nawigacyjne (`RoomTag.targetEntryId`).
+4. Wersjonowanie: `zone.walkinVersion` (V1, V2...) + `zone.versions[]` (snapshot linków).
+5. Przywracanie: `POST /api/walkin?action=rollback-version`.
+
+**Panorama 360°:** po stronie klienta (`stitchPanorama`), upload przez `/api/upload`, zapis jako `VisualEntry.mediaType: 'photo'` z `angleLabel: 'Panorama 360°'`.
+
+---
+
+## Powiadomienia i crony
+
+- **Web Push:** `server/pushService.ts` (VAPID), `notificationService.ts` (client).
+- **Crony:** `vercel.json` (daily-briefing 6:00 UTC, wood-supply-check pon 6:00 UTC).
+- **Bezpieczeństwo:** crony wymagają `Authorization: Bearer ${CRON_SECRET}` (`api/cron/*.ts:8`). Brak → 401.
+- **Ciche godziny:** per profil (`NotificationSetting.quietHoursStart/End`, `types.ts:258-259`), sprawdzane w cronach (`daily-briefing.ts:54-60`).
+- **Uwaga (do poprawy):** `currentHour` w cronach liczony jest z `Date.getHours()` Vercela (UTC), nie z `Europe/Warsaw`. Dla polskiego użytkownika ciche godziny mogą być przesunięte o 1-2h zimą/latem.
+
+---
+
+## Decyzje produktowe
+
+Zapisane w `TODO-finalizacja.md` po audycie:
+
+1. **Strefy wizualne — dynamiczne** (brak sztywnej listy 7 pomieszczeń). Użytkownik tworzy strefy sam.
+2. **Plan tygodniowy — nadpisanie per tydzień** (brak siatki osoby × dni).
+3. **Historia wersji Walk-In — w modalu + panelu admina** (brak osobnej zakładki).
+4. **Pogoda — demo (hardcoded)**. Propozycja: Open-Meteo (darmowe, bez klucza) do wdrożenia.
+5. **Google Calendar — tylko .ics** (eksport + import jednorazowy). Brak OAuth.
+
+---
+
+## Wdrożenie
+
+### Vercel Hobby
+- 11/12 serverless functions używane.
+- `vercel.json`: framework `vite`, build `vite build`, output `dist/`, crony.
+
+### Zmienne środowiskowe (`.env.example`)
+| Zmienna | Wymagana | Opis |
+|---------|----------|------|
+| `GEMINI_API_KEY` | Dla AI | Model `gemini-2.0-flash` |
+| `DATABASE_URL` | Dla bazy | PostgreSQL/Neon connection string |
+| `VAPID_PUBLIC_KEY` | Dla push | Wygeneruj: `npx web-push generate-vapid-keys` |
+| `VAPID_PRIVATE_KEY` | Dla push | — |
+| `VAPID_SUBJECT` | Dla push | `mailto:...` |
+| `CRON_SECRET` | Dla cronów | Losowy string, header `Authorization: Bearer` |
+| `BLOB_READ_WRITE_TOKEN` | Dla zdjęć | Vercel Blob store token |
+| `APP_URL` | Opcjonalna | URL apki (OAuth, linki) |
+
+### Lokalny dev
 ```bash
 npm install
-npm run build    # Vite build → dist/
-vercel deploy    # Wdróż na Vercel
-```
-
-### Lokalny development
-```bash
-npm run dev      # Vite dev server na :5173
-vercel dev       # Vercel functions lokalnie
+npm run dev    # vercel dev (functions lokalnie)
+npm run build  # vite build
+npm run lint   # tsc --noEmit (0 błędów)
 ```
 
 ### Weryfikacja
-```bash
-tsc --noEmit     # 0 błędów TypeScript
-```
+- `tsc --noEmit` → 0 błędów ✅
+- `vite build` → 2537 modułów, build OK ✅
+- `api/health` → `{ status: 'ok', aiReady: bool, database: 'postgresql/neon' | 'local-storage/memory' }`
 
 ---
 
-## Podsumowanie funkcji
-
-| # | Funkcja | Status | Lokalizacja |
-|---|---------|--------|-------------|
-| 1 | Tablica wiadomości | ✅ | BoardWidget, TodayView |
-| 2 | Kalendarz rodzinny + sync | ✅ | CalendarView, recurrenceEngine |
-| 3 | Spiżarnia | ✅ | ShoppingView → zakładka Pantry |
-| 4 | Limity budżetowe | ✅ | ShoppingView → zakładka Budget |
-| 5 | Skan paragonów (Gemini AI) | ✅ | ScanHandwrittenModal, api/ai/scan-handwritten |
-| 6 | Skan kodów kreskowych | ✅ | ShoppingView (camera stub) |
-| 7 | Historia serwisów sprzętu | ✅ | HouseOverviewView → sekcja Serwis |
-| 8 | Tryb nieobecność | ✅ | TodayView → przycisk ✈️ |
-| 9 | Walk-In Faza 1–3 (CPU) | ✅ | VisualZoneModal, api/walkin |
-| 10 | Panorama 360° (CPU) | ✅ | panoramaStitcher.ts |
-| 11 | Wersjonowanie V1..Vn | ✅ | VisualZone.versions[], SpaceVersion |
-| 12 | Panel wspólny | ✅ | BoardWidget w TodayView i VisualZoneModal |
-| 13 | Panel zarządzanie | ✅ | AdminPlanView (tylko Kamil) |
-| 14 | 7 pomieszczeń wizualizacja | ✅ | HouseOverviewView, AdminPlanView |
-| 15 | Hotspoty nawigacji | ✅ | RoomTag.targetEntryId |
-| 16 | AI Asystent | ✅ | AiAssistantModal |
-| 17 | SOS Alert | ✅ | SosModal |
-| 18 | PWA widżet | ✅ | PwaWidgetModal, HomeScreenWidget |
-| 19 | Web Push powiadomienia | ✅ | notificationService.ts |
-| 20 | Sync localStorage ↔ server | ✅ | ChataContext debounce 1.5s |
-| 21 | pHash + Hamming (CPU) | ✅ | imageHash.ts |
-| 22 | Konfetti przy wykonaniu | ✅ | ChataContext.toggleTaskCompletion |
-| 23 | Pogoda (WeatherAPI stub) | ✅ | TodayView weather widget |
-| 24 | Wydatki + kategorie | ✅ | Expense[], ShoppingView |
-| 25 | Lista zakupów | ✅ | ShoppingView |
-| 26 | Drewno opałowe | ✅ | HouseOverviewView |
-| 27 | Przydziały zadań | ✅ | AdminPlanView → Przydziały |
-| 28 | Plan tygodniowy | ✅ | AdminPlanView → Plan tygodniowy |
-| 29 | Cleanliness Score | ✅ | recurrenceEngine.calculateCleanlinessScore |
-| 30 | Przypomnienia o gwarancjach | ✅ | HouseOverviewView (alerts) |
+## Znane ograniczenia
+- Pogoda to demo (hardcoded).
+- Crony używają UTC zamiast Europe/Warsaw (ciche godziny mogą być przesunięte).
+- Vercel Blob: wideo szybko zużywa darmowy tier (~500 MB/mies.) — nagrywać krótkie klipy.
+- `BLOB_READ_WRITE_TOKEN` brak → zdjęcia wracają jako `dataUrl` (niepersystentne między reloadami).

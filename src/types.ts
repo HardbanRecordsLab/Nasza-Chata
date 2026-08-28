@@ -121,7 +121,7 @@ export interface InStoreCartItem {
 export interface WoodInventory {
   estimatedM3: number;
   totalCapacityM3: number;
-  lastCutDate: string;
+  lastCutDate: string | null;
   logsInBoilerRoom: number;
   dailyBurnRateWinterM3: number;
   updatedAt: string;

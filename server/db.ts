@@ -165,26 +165,29 @@ export async function getDbState(): Promise<DatabaseSchema> {
  * Save full state of the app
  */
 export async function saveDbState(incoming: Partial<DatabaseSchema>): Promise<DatabaseSchema> {
+  if (!incoming || typeof incoming !== 'object') {
+    return memoryState;
+  }
   memoryState = {
-    tasks: incoming.tasks ?? memoryState.tasks,
-    completions: incoming.completions ?? memoryState.completions,
-    expenses: incoming.expenses ?? memoryState.expenses,
-    shoppingItems: incoming.shoppingItems ?? memoryState.shoppingItems,
-    equipment: incoming.equipment ?? memoryState.equipment,
+    tasks: Array.isArray(incoming.tasks) ? incoming.tasks : memoryState.tasks,
+    completions: Array.isArray(incoming.completions) ? incoming.completions : memoryState.completions,
+    expenses: Array.isArray(incoming.expenses) ? incoming.expenses : memoryState.expenses,
+    shoppingItems: Array.isArray(incoming.shoppingItems) ? incoming.shoppingItems : memoryState.shoppingItems,
+    equipment: Array.isArray(incoming.equipment) ? incoming.equipment : memoryState.equipment,
     woodInventory: incoming.woodInventory ?? memoryState.woodInventory,
-    roomSnapshots: incoming.roomSnapshots ?? memoryState.roomSnapshots,
-    visualZones: incoming.visualZones ?? memoryState.visualZones,
-    sosAlerts: incoming.sosAlerts ?? memoryState.sosAlerts,
-    comments: incoming.comments ?? memoryState.comments,
+    roomSnapshots: Array.isArray(incoming.roomSnapshots) ? incoming.roomSnapshots : memoryState.roomSnapshots,
+    visualZones: Array.isArray(incoming.visualZones) ? incoming.visualZones : memoryState.visualZones,
+    sosAlerts: Array.isArray(incoming.sosAlerts) ? incoming.sosAlerts : memoryState.sosAlerts,
+    comments: Array.isArray(incoming.comments) ? incoming.comments : memoryState.comments,
     notifications: incoming.notifications ?? memoryState.notifications,
-    profiles: incoming.profiles ?? memoryState.profiles,
-    weeklyPlans: (incoming as any).weeklyPlans ?? (memoryState as any).weeklyPlans ?? [],
-    boardMessages: (incoming as any).boardMessages ?? (memoryState as any).boardMessages ?? [],
-    pantryItems: (incoming as any).pantryItems ?? (memoryState as any).pantryItems ?? [],
+    profiles: Array.isArray(incoming.profiles) ? incoming.profiles : memoryState.profiles,
+    weeklyPlans: Array.isArray((incoming as any).weeklyPlans) ? (incoming as any).weeklyPlans : (memoryState as any).weeklyPlans ?? [],
+    boardMessages: Array.isArray((incoming as any).boardMessages) ? (incoming as any).boardMessages : (memoryState as any).boardMessages ?? [],
+    pantryItems: Array.isArray((incoming as any).pantryItems) ? (incoming as any).pantryItems : (memoryState as any).pantryItems ?? [],
     budgetLimits: (incoming as any).budgetLimits ?? (memoryState as any).budgetLimits ?? {},
     absenceMode: (incoming as any).absenceMode ?? (memoryState as any).absenceMode ?? null,
-    familyEvents: (incoming as any).familyEvents ?? (memoryState as any).familyEvents ?? [],
-    equipmentHistory: (incoming as any).equipmentHistory ?? (memoryState as any).equipmentHistory ?? [],
+    familyEvents: Array.isArray((incoming as any).familyEvents) ? (incoming as any).familyEvents : (memoryState as any).familyEvents ?? [],
+    equipmentHistory: Array.isArray((incoming as any).equipmentHistory) ? (incoming as any).equipmentHistory : (memoryState as any).equipmentHistory ?? [],
   };
 
   writeLocalJson(memoryState);
