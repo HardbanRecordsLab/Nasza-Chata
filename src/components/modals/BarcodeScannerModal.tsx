@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Barcode, Plus, Camera } from 'lucide-react';
+import { X, Barcode, Plus, Camera, Receipt } from 'lucide-react';
 import { useChata } from '../../context/ChataContext';
+import { ScanReceiptModal } from './ScanReceiptModal';
 
 interface BarcodeScannerModalProps {
   onClose: () => void;
@@ -11,6 +12,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onClos
   const [manualCode, setManualCode] = useState('');
   const [productName, setProductName] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [showReceiptScanner, setShowReceiptScanner] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -74,6 +76,15 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onClos
     onClose();
   };
 
+  if (showReceiptScanner) {
+    return (
+      <ScanReceiptModal
+        onClose={() => setShowReceiptScanner(false)}
+        onReceiptParsed={() => onClose()}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white rounded-[32px] p-6 w-full max-w-md shadow-2xl border border-[#78350F]/10">
@@ -85,6 +96,20 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onClos
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Whole-receipt scanner entry point */}
+        <button
+          onClick={() => { stopScan(); setShowReceiptScanner(true); }}
+          className="w-full mb-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-left flex items-center gap-3 transition-colors"
+        >
+          <span className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0">
+            <Receipt className="w-4 h-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-xs font-bold text-emerald-800">Skanuj cały paragon (AI)</span>
+            <span className="block text-[11px] text-emerald-700/70">Rozpozna wszystkie pozycje i doda je do spiżarni</span>
+          </span>
+        </button>
 
         <div className="rounded-2xl overflow-hidden bg-zinc-900 aspect-[4/3] relative flex items-center justify-center">
           {isScanning ? (

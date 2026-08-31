@@ -31,6 +31,24 @@ export async function handleScanHandwritten(body: ScanHandwrittenRequest) {
 
   const ai = getAI();
   if (!ai) {
+    if (mode === 'receipt') {
+      return {
+        amount: 87.43,
+        note: 'Biedronka (demo — skonfiguruj GEMINI_API_KEY)',
+        category: 'Spożywcze & Dom',
+        date: new Date().toISOString().split('T')[0],
+        items: [
+          { name: 'Mleko 3.2% 1L', quantity: '2 szt.', price: 6.98, category: 'Nabiał' },
+          { name: 'Chleb razowy', quantity: '1 szt.', price: 4.49, category: 'Pieczywo' },
+          { name: 'Masło extra 200g', quantity: '1 szt.', price: 8.99, category: 'Nabiał' },
+          { name: 'Jajka L 10szt', quantity: '1 opak.', price: 12.90, category: 'Nabiał' },
+          { name: 'Pomidory malinowe', quantity: '0.6 kg', price: 7.14, category: 'Warzywa' },
+          { name: 'Papier toaletowy 8szt', quantity: '1 opak.', price: 15.99, category: 'Chemia & Dom' },
+        ],
+        rawText: 'Tryb demonstracyjny bez aktywnego klucza Gemini — przykładowy paragon.',
+        aiPowered: false,
+      };
+    }
     return {
       items: [
         { name: 'Oczyszczenie rynien z liści', category: 'garden', frequency: 'monthly', room: 'Ogród / Dach' },

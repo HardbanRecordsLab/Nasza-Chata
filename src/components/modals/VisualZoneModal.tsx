@@ -1,10 +1,11 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { VisualZone, VisualEntry, RoomTag } from '../../types';
 import { useChata } from '../../context/ChataContext';
 import { isTaskScheduledOnDate } from '../../utils/recurrenceEngine';
 import { extractKeyFrames } from '../../utils/videoFrameExtractor';
 import { hashImageData, hammingDistance } from '../../utils/imageHash';
 import { stitchPanorama } from '../../utils/panoramaStitcher';
+import { compressImage } from '../../utils/imageCompression';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
@@ -25,6 +26,8 @@ import {
   Check,
   Plus,
   Eye,
+  Upload,
+  ImageOff,
 } from 'lucide-react';
 
 interface VisualZoneModalProps {
@@ -77,12 +80,15 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
   const [recordingTime, setRecordingTime] = useState(0);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [videoThumbnail, setVideoThumbnail] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const photoFileInputRef = useRef<HTMLInputElement>(null);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
 
   // Hotspot state
   const [isAddingTag, setIsAddingTag] = useState(false);
@@ -122,6 +128,7 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
 
   // Start camera for capture
   const startCamera = useCallback(async () => {
+    setCameraError(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
@@ -132,10 +139,11 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
         videoRef.current.srcObject = stream;
       }
     } catch (err) {
-      console.error('Camera error:', err);
-      showToast('Błąd kamery', 'Nie udało się uruchomić aparatu', 'error');
+      console.warn('Camera unavailable, using upload fallback:', err);
+      setCameraError(true);
+      showToast('Brak dostępu do kamery', 'Możesz wgrać zdjęcia lub wideo z galerii.', 'warning');
     }
-  }, [captureMode]);
+  }, [captureMode, showToast]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -148,11 +156,79 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
     }
   }, []);
 
+  // Camera lifecycle — start when the capture view is open, stop on leave / unmount / mode switch
+  useEffect(() => {
+    if (view === 'capture' && !videoBlob) {
+      startCamera();
+    }
+    return () => stopCamera();
+  }, [view, captureMode, videoBlob, startCamera, stopCamera]);
+
+  // Generate a poster thumbnail from a video Blob/File
+  const makeVideoThumbnail = useCallback((blob: Blob): Promise<string | null> => {
+    return new Promise(resolve => {
+      const url = URL.createObjectURL(blob);
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.muted = true;
+      v.src = url;
+      v.onloadeddata = () => {
+        try {
+          v.currentTime = Math.min(0.1, v.duration || 0.1);
+        } catch { /* noop */ }
+      };
+      v.onseeked = () => {
+        const c = document.createElement('canvas');
+        c.width = Math.min(640, v.videoWidth || 640);
+        c.height = v.videoWidth ? Math.round((c.width / v.videoWidth) * v.videoHeight) : 480;
+        const ctx = c.getContext('2d');
+        if (ctx) ctx.drawImage(v, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(ctx ? c.toDataURL('image/jpeg', 0.6) : null);
+      };
+      v.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    });
+  }, []);
+
+  // Pick photos from the gallery / file system (fallback when there is no camera)
+  const handlePickPhotos = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    let idx = currentAngleIdx;
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+      const dataUrl = await compressImage(file, 1920, 0.82);
+      const angle = captureAngles[idx] || `Zdjęcie ${idx + 1}`;
+      setCapturedPhotos(prev => [...prev, { angle, dataUrl }]);
+      if (idx < captureAngles.length - 1) idx++;
+    }
+    setCurrentAngleIdx(idx);
+    showToast('Dodano zdjęcia', `${files.length} z galerii — kliknij „Zapisz"`, 'success');
+  }, [currentAngleIdx, captureAngles, showToast]);
+
+  // Pick a video from the gallery / file system
+  const handlePickVideo = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !file.type.startsWith('video/')) return;
+    stopCamera();
+    setVideoBlob(file);
+    const thumb = await makeVideoThumbnail(file);
+    setVideoThumbnail(thumb);
+    showToast('Wczytano wideo', 'Zapisz albo wyodrębnij Walk-In', 'success');
+  }, [stopCamera, makeVideoThumbnail, showToast]);
+
   // Take photo — capture is already compressed via canvas (1920px, jpeg 0.8)
   const takePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const video = videoRef.current;
+
+    if (!video.videoWidth || !video.videoHeight) {
+      showToast('Kamera nie jest gotowa', 'Poczekaj chwilę lub wgraj zdjęcie z galerii.', 'warning');
+      return;
+    }
 
     const maxDim = 1920;
     let w = video.videoWidth;
@@ -176,7 +252,7 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
       setCurrentAngleIdx(prev => prev + 1);
     }
     // No auto-save — user clicks „Zapisz" (avoids stale-closure race, lets user review)
-  }, [currentAngleIdx, captureAngles]);
+  }, [currentAngleIdx, captureAngles, showToast]);
 
   // Start video recording
   const startRecording = useCallback(() => {
@@ -431,6 +507,10 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
 
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-black animate-in fade-in">
+        {/* Hidden file inputs — gallery / filesystem fallback */}
+        <input ref={photoFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePickPhotos} />
+        <input ref={videoFileInputRef} type="file" accept="video/*" className="hidden" onChange={handlePickVideo} />
+
         {/* Header */}
         <div className="p-4 flex items-center justify-between bg-black/80 absolute top-0 left-0 right-0 z-20">
           <div>
@@ -439,9 +519,18 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
               Kąt {currentAngleIdx + 1}/{captureAngles.length}: {angle}
             </p>
           </div>
-          <button onClick={() => { stopCamera(); onClose(); }} className="p-2 bg-white/20 rounded-full text-white">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => (captureMode === 'video' ? videoFileInputRef : photoFileInputRef).current?.click()}
+              className="px-2.5 py-1.5 bg-white/15 hover:bg-white/25 rounded-full text-white text-xs font-bold flex items-center gap-1.5"
+              title="Wgraj z galerii / plików"
+            >
+              <Upload className="w-3.5 h-3.5" /> Galeria
+            </button>
+            <button onClick={() => { stopCamera(); onClose(); }} className="p-2 bg-white/20 rounded-full text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Progress bar */}
@@ -453,8 +542,27 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
 
         {/* Camera / Preview */}
         <div className="flex-1 relative flex items-center justify-center bg-zinc-900">
-          <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
+          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
           <canvas ref={canvasRef} className="hidden" />
+
+          {/* Camera unavailable — steer the user to the gallery upload */}
+          {cameraError && !videoBlob && capturedPhotos.length === 0 && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-8 bg-zinc-900">
+              <ImageOff className="w-12 h-12 text-white/40 mb-3" />
+              <h4 className="text-white font-bold text-base mb-1">Kamera niedostępna</h4>
+              <p className="text-white/60 text-sm max-w-[280px] mb-4">
+                Nie udało się uruchomić aparatu. Wgraj zdjęcia lub krótkie wideo tej strefy z galerii telefonu.
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => photoFileInputRef.current?.click()} className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-sm font-bold flex items-center gap-2">
+                  <Upload className="w-4 h-4" /> Wgraj zdjęcia
+                </button>
+                <button onClick={() => videoFileInputRef.current?.click()} className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl text-sm font-bold flex items-center gap-2">
+                  <Video className="w-4 h-4" /> Wgraj wideo
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Capture mode toggle */}
           <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex bg-black/60 rounded-full p-1">
@@ -477,14 +585,16 @@ export const VisualZoneModal: React.FC<VisualZoneModalProps> = ({ zone, onClose 
           </div>
 
           {/* Angle instruction */}
-          <div className="absolute bottom-24 inset-x-0 flex justify-center z-20">
-            <div className="bg-black/70 px-4 py-2 rounded-full">
-              <p className="text-white text-sm font-bold text-center">
-                📸 Zrób zdjęcie: <span className="text-emerald-400">{angle}</span>
-              </p>
-              <p className="text-white/60 text-xs text-center">({currentAngleIdx + 1}/{captureAngles.length})</p>
+          {!cameraError && (
+            <div className="absolute bottom-24 inset-x-0 flex justify-center z-20">
+              <div className="bg-black/70 px-4 py-2 rounded-full">
+                <p className="text-white text-sm font-bold text-center">
+                  {captureMode === 'video' ? '🎥 Nagraj' : '📸 Zrób zdjęcie'}: <span className="text-emerald-400">{angle}</span>
+                </p>
+                <p className="text-white/60 text-xs text-center">({currentAngleIdx + 1}/{captureAngles.length})</p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Recording timer */}
           {isRecording && (

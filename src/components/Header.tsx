@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useChata } from '../context/ChataContext';
 import { ChataLogoIcon } from './icons/CustomChataIcons';
-import { AlertTriangle, Plus, Bell, Smartphone, Camera, User, ChevronDown, Sparkles, ShieldCheck, ClipboardList } from 'lucide-react';
+import { AlertTriangle, Plus, Bell, Smartphone, Camera, User, ChevronDown, Sparkles, ShieldCheck, ClipboardList, Pencil } from 'lucide-react';
+import { Profile } from '../types';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { getNotificationPermissionStatus } from '../utils/notificationService';
@@ -24,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenScanHandwritten,
 }) => {
   const { currentProfile, profiles, selectProfile, sosAlerts, notifications } = useChata();
-  const [isEditPhotoModalOpen, setIsEditPhotoModalOpen] = useState(false);
+  const [editPhotoTarget, setEditPhotoTarget] = useState<Profile | null>(null);
 
   const activeSosCount = sosAlerts.filter(a => a.status === 'active').length;
   const todayFormatted = format(new Date(), 'EEEE, d MMMM', { locale: pl });
@@ -102,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* Active Profile Switcher Quick Avatars */}
+          {/* Active Profile Switcher Quick Avatars — tap active avatar again to edit photo/PIN */}
           <div className="flex items-center gap-1 bg-white/80 p-1 rounded-full border border-[#78350F]/10 shadow-2xs">
             {profiles.map(p => {
               const isSelected = p.id === currentProfile.id;
@@ -110,19 +111,28 @@ export const Header: React.FC<HeaderProps> = ({
               return (
                 <button
                   key={p.id}
-                  onClick={() => selectProfile(p)}
+                  onClick={() => (isSelected ? setEditPhotoTarget(p) : selectProfile(p))}
                   className={`rounded-full p-0.5 transition-all relative group ${
                     isSelected
                       ? 'ring-2 ring-[#D97706] scale-105 shadow-xs'
                       : 'opacity-75 hover:opacity-100 hover:scale-105'
                   }`}
-                  title={`Przełącz na: ${p.name} (${p.roleTitle})${isProfileAdmin ? ' • ADMIN' : ''}`}
+                  title={
+                    isSelected
+                      ? `Zmień zdjęcie / PIN: ${p.name}`
+                      : `Przełącz na: ${p.name} (${p.roleTitle})${isProfileAdmin ? ' • ADMIN' : ''}`
+                  }
                 >
                   <ProfileAvatar
                     profile={p}
                     size="sm"
                     showAdminBadge={isProfileAdmin}
                   />
+                  {isSelected && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#D97706] rounded-full border-2 border-white flex items-center justify-center shadow-xs">
+                      <Camera className="w-2 h-2 text-white" />
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -132,12 +142,12 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Active Profile Label & Photo Edit Trigger */}
           <button
-            onClick={() => setIsEditPhotoModalOpen(true)}
-            className="text-right hidden sm:flex flex-col items-end hover:bg-white/60 px-2 py-1 rounded-xl transition-colors group cursor-pointer"
+            onClick={() => setEditPhotoTarget(currentProfile)}
+            className="text-right flex flex-col items-end hover:bg-white/60 px-2 py-1 rounded-xl transition-colors group cursor-pointer"
             title="Kliknij, aby zmienić własne zdjęcie profilowe lub dane"
           >
             <div className="flex items-center gap-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#78350F]/60">
+              <p className="hidden sm:block text-[10px] font-semibold uppercase tracking-wider text-[#78350F]/60">
                 Profil
               </p>
               {isAdmin && (
@@ -147,8 +157,8 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
             <p className="text-xs font-bold text-[#2D4F1E] leading-tight group-hover:text-[#D97706] flex items-center gap-1">
-              <span>{currentProfile.name}</span>
-              <Camera className="w-3 h-3 text-[#78350F]/50 group-hover:text-[#D97706]" />
+              <span className="hidden xs:inline">{currentProfile.name}</span>
+              <Pencil className="w-3 h-3 text-[#78350F]/50 group-hover:text-[#D97706]" />
             </p>
           </button>
 
@@ -195,10 +205,10 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {isEditPhotoModalOpen && (
+      {editPhotoTarget && (
         <EditProfilePhotoModal
-          profileToEdit={currentProfile}
-          onClose={() => setIsEditPhotoModalOpen(false)}
+          profileToEdit={editPhotoTarget}
+          onClose={() => setEditPhotoTarget(null)}
         />
       )}
     </header>

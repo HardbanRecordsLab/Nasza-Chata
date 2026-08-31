@@ -52,17 +52,19 @@ export const EditProfilePhotoModal: React.FC<EditProfilePhotoModalProps> = ({
     // If user picked a preset https URL, keep it as-is
     setIsUploading(true);
     try {
-      // Compress via canvas before upload
-      const compressed = await compressImage(file, 1024, 0.8);
+      // Compress hard — an avatar is displayed at ~64px, so 400px @ 0.82 is plenty.
+      // Keeps the data-URL small enough to live in localStorage/state sync when
+      // Vercel Blob is not configured.
+      const compressed = await compressImage(file, 400, 0.82);
       // Upload to Blob immediately — show preview as Blob URL, save will use Blob URL
       const blobUrl = await uploadToBlob(compressed, `avatar-${targetProfile.id}-${Date.now()}.jpg`, `avatars/${targetProfile.id}`, 'image/jpeg');
-      if (blobUrl) {
+      if (blobUrl && blobUrl.startsWith('http')) {
         setSelectedPhoto(blobUrl);
-        showToast('Wgrano zdjęcie', 'Pamiętaj kliknąć "Zapisz zmiany".', 'success');
+        showToast('Wgrano zdjęcie', 'Pamiętaj kliknąć „Zapisz zmiany".', 'success');
       } else {
-        // Fallback: use compressed dataUrl locally
+        // Fallback: keep the compressed dataUrl (works, just stored locally)
         setSelectedPhoto(compressed);
-        showToast('Wczytano zdjęcie (lokalnie)', 'Pamiętaj kliknąć "Zapisz zmiany".', 'info');
+        showToast('Wczytano zdjęcie', 'Zapisze się lokalnie. Kliknij „Zapisz zmiany".', 'info');
       }
     } catch (err) {
       console.error('Avatar upload error', err);
@@ -79,9 +81,10 @@ export const EditProfilePhotoModal: React.FC<EditProfilePhotoModalProps> = ({
     let photoUrl = selectedPhoto || undefined;
     // If photo is still a data URL (upload failed or offline), try one more time to upload before save
     if (photoUrl && photoUrl.startsWith('data:image')) {
-      const compressed = await compressImage(photoUrl, 1024, 0.8);
+      const compressed = await compressImage(photoUrl, 400, 0.82);
       const blobUrl = await uploadToBlob(compressed, `avatar-${targetProfile.id}-${Date.now()}.jpg`, `avatars/${targetProfile.id}`, 'image/jpeg');
-      if (blobUrl) photoUrl = blobUrl;
+      if (blobUrl && blobUrl.startsWith('http')) photoUrl = blobUrl;
+      else photoUrl = compressed; // keep the small compressed data URL
     }
     updateProfile(targetProfile.id, {
       photoUrl,

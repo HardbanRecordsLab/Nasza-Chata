@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, ShieldCheck } from 'lucide-react';
 import { Profile } from '../../types';
 
@@ -29,24 +29,29 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
   const colorHex = profile?.colorHex || '#2D4F1E';
   const isAdmin = profile?.isAdmin || profile?.name === 'Kamil';
 
+  const [imgFailed, setImgFailed] = useState(false);
+  // Reset the error flag whenever the photo source changes (e.g. after upload)
+  useEffect(() => {
+    setImgFailed(false);
+  }, [photoUrl]);
+
+  const showPhoto = !!photoUrl && !imgFailed;
+
   return (
     <div className="relative inline-flex shrink-0">
       <div
         className={`${currentSize.container} rounded-full flex items-center justify-center font-medium overflow-hidden select-none border border-[#78350F]/15 ${className}`}
         style={{
-          backgroundColor: photoUrl ? '#F3F4F6' : `${colorHex}25`,
+          backgroundColor: showPhoto ? '#F3F4F6' : `${colorHex}25`,
           color: colorHex,
         }}
       >
-        {photoUrl ? (
+        {showPhoto ? (
           <img
             src={photoUrl}
             alt={profile?.name || 'Profil'}
             className="w-full h-full object-cover"
-            onError={(e) => {
-              // Fallback if image fails to load
-              (e.target as HTMLElement).style.display = 'none';
-            }}
+            onError={() => setImgFailed(true)}
           />
         ) : emojiAvatar ? (
           <span className="leading-none">{emojiAvatar}</span>
