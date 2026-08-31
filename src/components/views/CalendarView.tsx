@@ -37,9 +37,10 @@ import { ProofModal } from '../modals/ProofModal';
 interface CalendarViewProps {
   onOpenAddTask: () => void;
   initialDate?: Date;
+  onEditTask?: (task: TaskDefinition) => void;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask, initialDate }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask, initialDate, onEditTask }) => {
   const { tasks, completions, currentProfile, toggleTaskCompletion, showToast, familyEvents, addFamilyEvent, deleteFamilyEvent } = useChata();
 
   const [currentDate, setCurrentDate] = useState<Date>(initialDate || new Date());
@@ -490,6 +491,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenAddTask, initi
         <TaskDetailModal
           occurrence={selectedOccurrence}
           onClose={() => setSelectedOccurrence(null)}
+          onEdit={onEditTask ? (task) => { setSelectedOccurrence(null); onEditTask(task); } : undefined}
         />
       )}
 

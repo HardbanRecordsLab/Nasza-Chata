@@ -44,6 +44,7 @@ interface TodayViewProps {
   onOpenScanHandwritten?: () => void;
   onChangeTab?: (tab: 'today' | 'calendar' | 'shopping' | 'house' | 'plan') => void;
   onSelectDate?: (date: Date) => void;
+  onEditTask?: (task: TaskDefinition) => void;
 }
 
 export const TodayView: React.FC<TodayViewProps> = ({
@@ -55,6 +56,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
   onOpenScanHandwritten,
   onChangeTab,
   onSelectDate,
+  onEditTask,
 }) => {
   const {
     currentProfile,
@@ -685,6 +687,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
         <TaskDetailModal
           occurrence={selectedOccurrence}
           onClose={() => setSelectedOccurrence(null)}
+          onEdit={onEditTask ? (task) => { setSelectedOccurrence(null); onEditTask(task); } : undefined}
         />
       )}
 

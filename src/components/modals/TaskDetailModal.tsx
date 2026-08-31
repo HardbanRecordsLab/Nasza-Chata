@@ -243,18 +243,18 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ occurrence, on
                 Edytuj
               </button>
             )}
-            {task.isCustom && (
-              <button
-                onClick={() => {
+            <button
+              onClick={() => {
+                if (window.confirm(`Usunąć zadanie „${task.name}"? Zniknie z listy i kalendarza, a jego historia wykonań zostanie skasowana.`)) {
                   deleteTask(task.id);
                   onClose();
-                }}
-                className="p-2 text-red-600 hover:text-red-800 rounded-xl hover:bg-red-50 transition-colors flex items-center gap-1 text-xs font-semibold"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Usuń
-              </button>
-            )}
+                }
+              }}
+              className="p-2 text-red-600 hover:text-red-800 rounded-xl hover:bg-red-50 transition-colors flex items-center gap-1 text-xs font-semibold"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Usuń
+            </button>
           </div>
 
           <button

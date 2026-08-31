@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChataProvider, useChata } from './context/ChataContext';
+import { TaskDefinition } from './types';
 import { Header } from './components/Header';
 import { BottomNav, TabType } from './components/BottomNav';
 import { TodayView } from './components/views/TodayView';
@@ -25,6 +26,7 @@ const MainApp: React.FC = () => {
   const { tasks, completions, shoppingItems, currentProfile } = useChata();
   const [activeTab, setActiveTab] = useState<TabType>('today');
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskDefinition | null>(null);
   const [isSosOpen, setIsSosOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
@@ -127,6 +129,7 @@ const MainApp: React.FC = () => {
             onOpenScanHandwritten={() => setIsScanModalOpen(true)}
             onChangeTab={setActiveTab}
             onSelectDate={(date) => setCalendarSelectedDate(date)}
+            onEditTask={(task) => setEditingTask(task)}
           />
         )}
 
@@ -134,6 +137,7 @@ const MainApp: React.FC = () => {
           <CalendarView
             onOpenAddTask={() => setIsAddTaskOpen(true)}
             initialDate={calendarSelectedDate}
+            onEditTask={(task) => setEditingTask(task)}
           />
         )}
 
@@ -166,8 +170,14 @@ const MainApp: React.FC = () => {
         <SosModal onClose={() => setIsSosOpen(false)} />
       )}
 
-      {isAddTaskOpen && (
-        <AddTaskModal onClose={() => setIsAddTaskOpen(false)} />
+      {(isAddTaskOpen || editingTask) && (
+        <AddTaskModal
+          taskToEdit={editingTask ?? undefined}
+          onClose={() => {
+            setIsAddTaskOpen(false);
+            setEditingTask(null);
+          }}
+        />
       )}
 
       {isAiAssistantOpen && (
