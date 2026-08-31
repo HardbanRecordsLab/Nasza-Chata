@@ -81,6 +81,16 @@ interface ChataContextType {
       note?: string;
     }
   ) => void;
+  saveTaskProof: (
+    taskId: string,
+    targetDate: Date,
+    proofData: {
+      beforeUrl?: string;
+      afterUrl?: string;
+      type?: 'photo' | 'video';
+      note?: string;
+    }
+  ) => void;
   addTask: (task: Omit<TaskDefinition, 'id' | 'createdAt' | 'archivedAt'>) => void;
   updateTask: (task: TaskDefinition) => void;
   deleteTask: (taskId: string) => void;
@@ -538,6 +548,59 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         `${currentProfile.name} odhaczył(a): ${task.name}`,
         'success'
       );
+    }
+  };
+
+  // Attach / update a photo-video proof WITHOUT toggling completion off.
+  // If the task is not yet done for this period it gets completed (with proof);
+  // if it is already done, only the proof fields on the existing entry change.
+  const saveTaskProof = (
+    taskId: string,
+    targetDate: Date,
+    proofData: { beforeUrl?: string; afterUrl?: string; type?: 'photo' | 'video'; note?: string }
+  ) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const periodKey = getPeriodKey(task, targetDate);
+
+    setCompletions(prev => {
+      const idx = prev.findIndex(c => c.taskId === taskId && c.periodKey === periodKey);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          proofBeforeUrl: proofData.beforeUrl ?? copy[idx].proofBeforeUrl,
+          proofAfterUrl: proofData.afterUrl ?? copy[idx].proofAfterUrl,
+          proofType: proofData.type || copy[idx].proofType || 'photo',
+          proofNote: proofData.note ?? copy[idx].proofNote,
+        };
+        return copy;
+      }
+      return [
+        ...prev,
+        {
+          id: 'comp-' + Date.now().toString(),
+          taskId,
+          periodKey,
+          completedById: currentProfile.id,
+          completedByName: currentProfile.name,
+          completedAt: new Date().toISOString(),
+          proofBeforeUrl: proofData.beforeUrl,
+          proofAfterUrl: proofData.afterUrl,
+          proofType: proofData.type || 'photo',
+          proofNote: proofData.note,
+        },
+      ];
+    });
+
+    const wasDone = completions.some(c => c.taskId === taskId && c.periodKey === periodKey);
+    if (!wasDone) {
+      try {
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.85 }, colors: [currentProfile.colorHex, '#D4A359', '#10B981'] });
+      } catch {}
+      showToast('Wykonano obowiązek! 👏', `${currentProfile.name} odhaczył(a): ${task.name}`, 'success');
+    } else {
+      showToast('Zapisano dowód', task.name, 'success');
     }
   };
 
@@ -1052,6 +1115,7 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateProfile,
         assignTask,
         toggleTaskCompletion,
+        saveTaskProof,
         addTask,
         updateTask,
         deleteTask,

@@ -182,7 +182,7 @@ export const SosModal: React.FC<SosModalProps> = ({ onClose, reporterName }) => 
             </button>
             <button
               type="submit"
-              className="flex-2 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-98"
+              className="flex-[2] py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-98"
             >
               <AlertTriangle className="w-4 h-4" />
               Wyślij alert SOS do rodziny

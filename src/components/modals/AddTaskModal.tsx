@@ -453,7 +453,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ onClose, taskToEdit 
             </button>
             <button
               type="submit"
-              className="flex-2 py-3 px-4 rounded-xl bg-[#2D4F1E] hover:bg-[#1f3715] text-[#FDFCF0] font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
+              className="flex-[2] py-3 px-4 rounded-xl bg-[#2D4F1E] hover:bg-[#1f3715] text-[#FDFCF0] font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
             >
               <Plus className="w-4 h-4" />
               {taskToEdit ? 'Zapisz zmiany' : 'Dodaj obowiązek'}

@@ -10,7 +10,7 @@ interface ProofModalProps {
 }
 
 export const ProofModal: React.FC<ProofModalProps> = ({ occurrence, onClose }) => {
-  const { currentProfile, toggleTaskCompletion, showToast } = useChata();
+  const { currentProfile, saveTaskProof, showToast } = useChata();
   const [beforeUrl, setBeforeUrl] = useState<string>(occurrence.completion?.proofBeforeUrl || '');
   const [afterUrl, setAfterUrl] = useState<string>(occurrence.completion?.proofAfterUrl || '');
   const [proofType, setProofType] = useState<'photo' | 'video'>(occurrence.completion?.proofType || 'photo');
@@ -92,7 +92,7 @@ export const ProofModal: React.FC<ProofModalProps> = ({ occurrence, onClose }) =
   }, [uploadToBlob, occurrence.task.id, showToast]);
 
   const handleSaveAndComplete = () => {
-    toggleTaskCompletion(occurrence.task.id, new Date(occurrence.date), {
+    saveTaskProof(occurrence.task.id, new Date(occurrence.date), {
       beforeUrl,
       afterUrl,
       type: proofType,
@@ -263,7 +263,7 @@ export const ProofModal: React.FC<ProofModalProps> = ({ occurrence, onClose }) =
           <button
             onClick={handleSaveAndComplete}
             disabled={isUploading}
-            className="flex-2 py-3 px-4 rounded-xl bg-[#2D4F1E] hover:bg-[#1f3715] text-[#FDFCF0] font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-[2] py-3 px-4 rounded-xl bg-[#2D4F1E] hover:bg-[#1f3715] text-[#FDFCF0] font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isUploading ? (
               <>
