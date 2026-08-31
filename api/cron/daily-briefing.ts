@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { getDbState } from '../../server/db';
 import { sendWebPushNotification } from '../../server/pushService';
+import { getOccurrencesForDate } from '../../src/utils/recurrenceEngine';
 
 export default async function handler(req: Request | any, res: Response | any) {
   // Vercel Cron uses GET; verify cron secret header for security
@@ -16,13 +17,20 @@ export default async function handler(req: Request | any, res: Response | any) {
     const notifications = db.notifications || {};
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // Count today's pending tasks
-    const todayCompletions = completions.filter(
-      (c: any) => c.periodKey?.startsWith(todayStr) || c.completedAt?.startsWith(todayStr)
-    );
-    const completedCount = todayCompletions.length;
-    const totalCount = tasks.length || 1;
-    const pendingCount = Math.max(0, totalCount - completedCount);
+    const activeSos = (db.sosAlerts || []).filter((a: any) => a.status === 'active');
+
+    // Don't nag about chores while the house is empty (absence mode) — only SOS gets through
+    if ((db as any).absenceMode?.active && activeSos.length === 0) {
+      return res.status(200).json({ success: true, skipped: 'absence mode active', date: todayStr });
+    }
+
+    // Count only tasks actually scheduled for today that aren't done yet
+    const todayOccurrences = getOccurrencesForDate(tasks as any, completions as any, new Date(), {
+      onlyScheduled: true,
+      includeOverdue: false,
+    });
+    const completedCount = todayOccurrences.filter(o => o.isCompleted).length;
+    const pendingCount = todayOccurrences.filter(o => !o.isCompleted).length;
 
     // Wood inventory summary
     const wood = db.woodInventory || { estimatedM3: 0, logsInBoilerRoom: 0 };
@@ -34,9 +42,8 @@ export default async function handler(req: Request | any, res: Response | any) {
     } else {
       bodyParts.push(`✅ Wszystko zrobione!`);
     }
-    bodyParts.push(`🪵 Drewnia: ${wood.estimatedM3} m³, Kotłownia: ${wood.logsInBoilerRoom} polan`);
+    bodyParts.push(`🪵 Drewutnia: ${wood.estimatedM3} m³, Kotłownia: ${wood.logsInBoilerRoom} polan`);
 
-    const activeSos = (db.sosAlerts || []).filter((a: any) => a.status === 'active');
     if (activeSos.length > 0) {
       bodyParts.push(`🚨 Aktywne awarie: ${activeSos.length}`);
     }
