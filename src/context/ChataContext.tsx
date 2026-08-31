@@ -769,6 +769,21 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     setSosAlerts(prev => [newAlert, ...prev]);
     showToast('🚨 Zgłoszono awarię SOS!', `${newAlert.title} (${newAlert.room})`, 'error');
+
+    // Fire a real Web Push to every subscribed device — family emergency
+    fetch('/api/notifications?action=send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `🚨 SOS: ${newAlert.title}`,
+        body: `${newAlert.room} — zgłosił(a) ${newAlert.reportedByName}. Wymagana reakcja domowników.`,
+        url: '/?action=sos',
+        tag: 'chata-sos',
+        type: 'warning',
+        targetProfileId: 'all',
+        respectPref: 'sosAlerts',
+      }),
+    }).catch(() => {});
   };
 
   const resolveSosAlert = (alertId: string) => {

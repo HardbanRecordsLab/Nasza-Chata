@@ -259,6 +259,9 @@ export interface NotificationSetting {
   quietHoursEnd: string;    // e.g. "07:00"
   weekendReminder: boolean;
   weatherAlerts: boolean;
+  sosAlerts?: boolean;     // push on new SOS emergency (default on)
+  woodAlerts?: boolean;    // weekly low-wood cron alert (default on)
+  soundEnabled?: boolean;  // vibrate / sound on notifications (default on)
 }
 
 export interface HouseComment {

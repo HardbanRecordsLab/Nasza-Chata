@@ -49,11 +49,10 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
   const [dailyTime, setDailyTime] = useState<string>(profileSettings.dailySummaryTime || '08:00');
   const [quietStart, setQuietStart] = useState<string>(profileSettings.quietHoursStart || '22:00');
   const [quietEnd, setQuietEnd] = useState<string>(profileSettings.quietHoursEnd || '07:00');
-  const [eveningSummary, setEveningSummary] = useState<boolean>(true);
-  const [woodAlerts, setWoodAlerts] = useState<boolean>(true);
-  const [sosAlerts, setSosAlerts] = useState<boolean>(true);
+  const [woodAlerts, setWoodAlerts] = useState<boolean>(profileSettings.woodAlerts ?? true);
+  const [sosAlerts, setSosAlerts] = useState<boolean>(profileSettings.sosAlerts ?? true);
   const [weatherAlerts, setWeatherAlerts] = useState<boolean>(profileSettings.weatherAlerts ?? true);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(profileSettings.soundEnabled ?? true);
   const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
@@ -89,6 +88,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
         title: `🔔 Test z Naszej Chaty: ${currentProfile.name}`,
         body: `Wszystko działa! Masz ${tasks.length} zadań w rejestrze i ${woodInventory.estimatedM3} m³ drewna.`,
         tag: 'test-push-' + Date.now(),
+        silent: !soundEnabled,
       });
 
       // 3. Also trigger real server Web Push endpoint
@@ -124,6 +124,9 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
       quietHoursEnd: quietEnd,
       weekendReminder: profileSettings.weekendReminder ?? true,
       weatherAlerts,
+      sosAlerts,
+      woodAlerts,
+      soundEnabled,
     });
     onClose();
   };

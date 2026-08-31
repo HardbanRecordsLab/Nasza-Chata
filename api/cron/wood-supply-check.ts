@@ -60,7 +60,8 @@ export default async function handler(req: Request | any, res: Response | any) {
           type: 'warning',
           url: '/?tab=house',
         },
-        profileId
+        profileId,
+        'woodAlerts'
       );
     }
 

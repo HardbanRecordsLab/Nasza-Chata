@@ -1,5 +1,5 @@
 import webpush from 'web-push';
-import { getPushSubscriptions, removePushSubscription, PushSubscriptionRecord } from './db';
+import { getPushSubscriptions, removePushSubscription, getDbState, PushSubscriptionRecord } from './db';
 
 // VAPID configuration — keys MUST be set in environment variables
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
@@ -50,16 +50,28 @@ export interface SendPushResult {
  */
 export async function sendWebPushNotification(
   payload: PushPayload,
-  targetProfileId?: string
+  targetProfileId?: string,
+  respectPref?: 'sosAlerts' | 'woodAlerts'
 ): Promise<SendPushResult> {
   if (!vapidPublicKey || !vapidPrivateKey) {
     return { totalSubscribers: 0, sentCount: 0, failedCount: 0, expiredCleaned: 0, results: [] };
   }
 
   const subscriptions = await getPushSubscriptions();
-  const relevantSubs = targetProfileId && targetProfileId !== 'all'
+  let relevantSubs = targetProfileId && targetProfileId !== 'all'
     ? subscriptions.filter(s => s.profileId === targetProfileId || s.profileId === 'all')
     : subscriptions;
+
+  // Honour a per-profile opt-out (e.g. "SOS alerts" or "wood alerts" toggle)
+  if (respectPref) {
+    try {
+      const notifications = (await getDbState()).notifications || {};
+      relevantSubs = relevantSubs.filter(s => {
+        const pref = (notifications as any)[s.profileId];
+        return !pref || pref[respectPref] !== false;
+      });
+    } catch { /* on error, send to everyone */ }
+  }
 
   const notificationData = JSON.stringify({
     title: payload.title || '🏡 Nasza Chata',

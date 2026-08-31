@@ -28,6 +28,7 @@ export async function handleSendPush(payload: {
   type?: string;
   url?: string;
   targetProfileId?: string;
+  respectPref?: 'sosAlerts' | 'woodAlerts';
 }) {
   const result = await sendWebPushNotification(
     {
@@ -39,7 +40,8 @@ export async function handleSendPush(payload: {
       type: payload.type || 'info',
       url: payload.url || '/',
     },
-    payload.targetProfileId
+    payload.targetProfileId,
+    payload.respectPref
   );
 
   return {

@@ -10,6 +10,7 @@ export interface PushNotificationOptions {
   badge?: string;
   data?: Record<string, any>;
   vibrate?: number[];
+  silent?: boolean;
   actions?: Array<{ action: string; title: string }>;
 }
 
@@ -75,6 +76,7 @@ export async function sendWebNotification(options: PushNotificationOptions): Pro
     icon = '/icon.svg',
     badge = '/icon.svg',
     data = { url: '/' },
+    silent = false,
     actions = [
       { action: 'open', title: 'Otwórz Chate' },
       { action: 'dismiss', title: 'Ukryj' },
@@ -93,7 +95,8 @@ export async function sendWebNotification(options: PushNotificationOptions): Pro
           badge,
           data,
           actions,
-          vibrate: [200, 100, 200],
+          silent,
+          vibrate: silent ? [] : [200, 100, 200],
         } as any);
         return true;
       }
