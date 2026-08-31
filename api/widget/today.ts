@@ -8,7 +8,7 @@ export default async function handler(req: Request | any, res: Response | any) {
     const allTasks = db.tasks || [];
     const completions = db.completions || [];
     const sosAlerts = db.sosAlerts || [];
-    const wood = db.woodInventory || { estimatedM3: 8.5, logsInBoilerRoom: 18 };
+    const wood = db.woodInventory || { estimatedM3: 0, logsInBoilerRoom: 0 };
 
     const tasksForToday = allTasks.map((t: any) => {
       const isCompleted = completions.some((c: any) =>

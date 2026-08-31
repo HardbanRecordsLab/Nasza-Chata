@@ -1,5 +1,5 @@
 // Nasza Chata Service Worker & Web Push Manager
-const CACHE_NAME = 'nasza-chata-cache-v2';
+const CACHE_NAME = 'nasza-chata-cache-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

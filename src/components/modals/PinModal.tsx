@@ -50,7 +50,7 @@ export const PinModal: React.FC = () => {
           Wpisz PIN: {pendingProfile.name}
         </h3>
         <p className="text-xs text-[#78350F]/70 mt-1 mb-5">
-          PIN dla profilu {pendingProfile.name}: <span className="font-mono font-semibold text-[#D97706]">{pendingProfile.pin}</span>
+          Podaj 4-cyfrowy kod, aby przełączyć się na ten profil.
         </p>
 
         {/* PIN Dots Indicator */}

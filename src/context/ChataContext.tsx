@@ -257,35 +257,45 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.warn('LocalStorage load error:', e);
     }
 
-    // Try background server sync
+    // Try background server sync.
+    // Guard: only let the server overwrite a field when it actually carries data.
+    // This stops an empty server response (e.g. in-memory mode after a cold start,
+    // or an offline preview) from wiping localStorage-restored data or the seed set.
     fetch('/api/state')
       .then(res => res.json())
       .then(data => {
-        if (data) {
-          if (data.profiles && Array.isArray(data.profiles) && data.profiles.length > 0) {
-            setProfiles(data.profiles);
+        if (!data || typeof data !== 'object') return;
+
+        const applyArray = <T,>(val: unknown, setter: (v: T[]) => void) => {
+          if (Array.isArray(val) && val.length > 0) setter(val as T[]);
+        };
+        const applyRecord = (val: unknown, setter: (v: any) => void) => {
+          if (val && typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length > 0) {
+            setter(val);
           }
-          if (data.tasks && data.tasks.length > 0) {
-            setTasks(data.tasks);
-          }
-          if (data.completions) setCompletions(data.completions || []);
-          if (data.expenses) setExpenses(data.expenses || INITIAL_EXPENSES);
-          if (data.shoppingItems) setShoppingItems(data.shoppingItems || INITIAL_SHOPPING_ITEMS);
-          if (data.woodInventory) setWoodInventory(data.woodInventory);
-          if (data.equipment) setEquipment(data.equipment);
-          if (data.roomSnapshots) setRoomSnapshots(data.roomSnapshots);
-          if (data.sosAlerts) setSosAlerts(data.sosAlerts);
-          if (data.comments) setComments(data.comments);
-          if (data.notifications) setNotifications(data.notifications);
-          if (data.visualZones) setVisualZones(data.visualZones);
-          if ((data as any).weeklyPlans) setWeeklyPlans((data as any).weeklyPlans);
-          if ((data as any).boardMessages) setBoardMessages((data as any).boardMessages);
-          if ((data as any).pantryItems) setPantryItems((data as any).pantryItems);
-          if ((data as any).budgetLimits) setBudgetLimitsState((data as any).budgetLimits);
-          if ((data as any).absenceMode) setAbsenceModeState((data as any).absenceMode);
-          if ((data as any).familyEvents) setFamilyEvents((data as any).familyEvents);
-          if ((data as any).equipmentHistory) setEquipmentHistory((data as any).equipmentHistory);
+        };
+
+        applyArray(data.profiles, setProfiles);
+        applyArray(data.tasks, setTasks);
+        applyArray(data.completions, setCompletions);
+        applyArray(data.expenses, setExpenses);
+        applyArray(data.shoppingItems, setShoppingItems);
+        if (data.woodInventory && typeof data.woodInventory === 'object') setWoodInventory(data.woodInventory);
+        applyArray(data.equipment, setEquipment);
+        applyArray(data.roomSnapshots, setRoomSnapshots);
+        applyArray(data.sosAlerts, setSosAlerts);
+        applyArray(data.comments, setComments);
+        applyRecord(data.notifications, setNotifications);
+        applyArray(data.visualZones, setVisualZones);
+        applyArray((data as any).weeklyPlans, setWeeklyPlans);
+        applyArray((data as any).boardMessages, setBoardMessages);
+        applyArray((data as any).pantryItems, setPantryItems);
+        applyRecord((data as any).budgetLimits, setBudgetLimitsState);
+        if ((data as any).absenceMode && typeof (data as any).absenceMode === 'object') {
+          setAbsenceModeState((data as any).absenceMode);
         }
+        applyArray((data as any).familyEvents, setFamilyEvents);
+        applyArray((data as any).equipmentHistory, setEquipmentHistory);
       })
       .catch(() => {
         // Offline or preview fallback
@@ -293,8 +303,11 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   // One-time migration: RoomSnapshot[] → VisualZone[] (backward compatibility)
+  const didMigrateSnapshotsRef = useRef(false);
   useEffect(() => {
+    if (didMigrateSnapshotsRef.current) return;
     if (roomSnapshots.length > 0 && visualZones.length === 0) {
+      didMigrateSnapshotsRef.current = true;
       const migrated: VisualZone[] = roomSnapshots.map(snap => ({
         id: 'vzone-' + snap.id,
         name: snap.roomName,

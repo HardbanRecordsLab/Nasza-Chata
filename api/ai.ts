@@ -50,7 +50,7 @@ async function handleChat(body: any, res: Response) {
 
   if (!ai) {
     return res.status(200).json({
-      reply: `Cześć! Jestem asystentem „Naszej Chaty". (Aby włączyć pełne odpowiedzi AI, skonfiguruj GEMINI_API_KEY). Aktualnie: ${db.tasks.length} zadań, ${db.woodInventory?.estimatedM3 || 8.5} m³ drewna.`,
+      reply: `Cześć! Jestem asystentem „Naszej Chaty". (Aby włączyć pełne odpowiedzi AI, skonfiguruj GEMINI_API_KEY). Aktualnie: ${db.tasks?.length ?? 0} zadań, ${db.woodInventory?.estimatedM3 ?? 0} m³ drewna.`,
     });
   }
 
@@ -60,11 +60,11 @@ Dom jednorodzinny z ogrodem i piecem na drewno.
 Odpowiadaj ciepło, konkretnie, po polsku.
 
 STAN DOMU:
-- Drewno: ${db.woodInventory?.estimatedM3 || 8.5} m³ / ${db.woodInventory?.totalCapacityM3 || 14} m³
-- Polana w kotłowni: ${db.woodInventory?.logsInBoilerRoom || 18} szt.
-- Zadania: ${db.tasks.length}
-- Wydatki: ${db.expenses.length}
-- Zakupy do zrobienia: ${db.shoppingItems.filter((s: any) => !s.isBought).map((s: any) => s.name).join(', ') || 'brak'}
+- Drewno: ${db.woodInventory?.estimatedM3 ?? 0} m³ / ${db.woodInventory?.totalCapacityM3 ?? 15} m³
+- Polana w kotłowni: ${db.woodInventory?.logsInBoilerRoom ?? 0} szt.
+- Zadania: ${db.tasks?.length ?? 0}
+- Wydatki: ${db.expenses?.length ?? 0}
+- Zakupy do zrobienia: ${(db.shoppingItems || []).filter((s: any) => !s.isBought).map((s: any) => s.name).join(', ') || 'brak'}
 
 Wiadomość: ${message}`;
 

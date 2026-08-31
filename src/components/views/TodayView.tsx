@@ -77,6 +77,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
   const [proofModalOccurrence, setProofModalOccurrence] = useState<TaskOccurrence | null>(null);
   const [selectedVisualZone, setSelectedVisualZone] = useState<any | null>(null);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
+  const [showCompleted, setShowCompleted] = useState(false);
   const [weatherAdvice, setWeatherAdvice] = useState<any>(null);
 
   const today = new Date();
@@ -90,6 +91,11 @@ export const TodayView: React.FC<TodayViewProps> = ({
     if (activeCategoryFilter === 'garden') return occ.task.category === 'garden' || occ.task.category === 'plants';
     return occ.task.category === activeCategoryFilter;
   });
+
+  // Visible list: hide completed unless toggled, most urgent (overdue) first
+  const visibleOccurrences = filteredOccurrences
+    .filter(occ => (showCompleted ? true : !occ.isCompleted))
+    .sort((a, b) => a.suggestedPriority - b.suggestedPriority);
 
   const completedCount = occurrences.filter(o => o.isCompleted).length;
   const totalCount = occurrences.length;
@@ -265,6 +271,135 @@ export const TodayView: React.FC<TodayViewProps> = ({
         </div>
       )}
 
+      {/* Lista obowiązków na dziś */}
+      <div className="bg-white rounded-[24px] border border-[#78350F]/10 shadow-xs overflow-hidden">
+        <div className="p-4 pb-3 flex items-start justify-between gap-3 border-b border-[#78350F]/10">
+          <div>
+            <h3 className="text-sm font-bold text-[#2D4F1E] flex items-center gap-2">
+              <span className="w-8 h-8 rounded-xl bg-[#2D4F1E]/10 flex items-center justify-center text-[#2D4F1E]">
+                <Check className="w-4 h-4" />
+              </span>
+              Obowiązki na dziś
+            </h3>
+            <p className="text-[11px] text-[#78350F]/70 mt-0.5">
+              {completedCount} z {totalCount} zrobione — odhacz z listy albo dotknij nazwy po szczegóły.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowCompleted(v => !v)}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors shrink-0 ${
+              showCompleted
+                ? 'bg-[#2D4F1E] text-white border-[#2D4F1E]'
+                : 'bg-white text-[#78350F] border-[#78350F]/20 hover:border-[#2D4F1E]/40'
+            }`}
+          >
+            {showCompleted ? 'Ukryj zrobione' : 'Pokaż zrobione'}
+          </button>
+        </div>
+
+        {/* Filtr kategorii */}
+        <div className="flex gap-1.5 overflow-x-auto p-3 pb-2">
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategoryFilter(cat.id)}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-colors shrink-0 ${
+                activeCategoryFilter === cat.id
+                  ? 'bg-[#D97706] text-white'
+                  : 'bg-[#FDFCF0] border border-[#78350F]/15 text-[#78350F] hover:border-[#D97706]/40'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Wiersze zadań */}
+        <div className="px-3 pb-3 space-y-1.5 max-h-[440px] overflow-y-auto">
+          {visibleOccurrences.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-[#78350F]/15 p-6 text-center bg-[#FDFCF0]/40">
+              <div className="text-2xl mb-1">
+                {totalCount > 0 && completedCount === totalCount ? '🎉' : '📋'}
+              </div>
+              <div className="text-xs font-bold text-[#2D4F1E]">
+                {totalCount === 0
+                  ? 'Brak zaplanowanych obowiązków na dziś.'
+                  : completedCount === totalCount
+                  ? 'Wszystko odhaczone — czas na herbatę! ☕'
+                  : activeCategoryFilter !== 'all'
+                  ? 'Brak zadań w tej kategorii.'
+                  : 'Widoczne zadania zrobione — włącz „Pokaż zrobione".'}
+              </div>
+            </div>
+          ) : (
+            visibleOccurrences.map(occ => {
+              const isDone = occ.isCompleted;
+              return (
+                <div
+                  key={occ.task.id}
+                  className={`group flex items-center gap-3 p-2.5 rounded-2xl border transition-all ${
+                    isDone
+                      ? 'bg-[#FDFCF0]/60 border-[#78350F]/10 opacity-70'
+                      : 'bg-white border-[#78350F]/15 hover:border-[#2D4F1E]/40 shadow-2xs'
+                  }`}
+                >
+                  <button
+                    onClick={() => toggleTaskCompletion(occ.task.id, today)}
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0 ${
+                      isDone
+                        ? 'bg-[#2D4F1E] text-[#FDFCF0]'
+                        : 'border-2 border-[#78350F]/30 hover:border-[#2D4F1E] text-transparent hover:text-[#2D4F1E]/30 bg-white'
+                    }`}
+                    title={isDone ? 'Cofnij wykonanie' : 'Oznacz jako zrobione'}
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+
+                  <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                    {getTaskIcon(occ.task.name, occ.task.category, isDone)}
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedOccurrence(occ)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <p
+                      className={`text-xs font-bold truncate leading-tight ${
+                        isDone ? 'line-through text-[#78350F]/60' : 'text-[#2D4F1E]'
+                      }`}
+                    >
+                      {occ.task.name}
+                    </p>
+                    <div className="flex items-center gap-1.5 text-[10px] text-[#78350F]/70 mt-0.5 flex-wrap">
+                      <span className="bg-[#78350F]/10 px-1.5 py-0.5 rounded font-medium">{occ.task.room}</span>
+                      {occ.task.assignedToName && (
+                        <span className="text-[#2D4F1E] font-semibold">→ {occ.task.assignedToName}</span>
+                      )}
+                      {occ.isOverdue && !isDone && <span className="text-red-700 font-bold">Zaległe!</span>}
+                      {isDone && occ.completion && (
+                        <span className="text-emerald-700 font-semibold">✓ {occ.completion.completedByName}</span>
+                      )}
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setProofModalOccurrence(occ)}
+                    className={`p-2 rounded-xl shrink-0 transition-colors ${
+                      occ.completion?.proofBeforeUrl || occ.completion?.proofAfterUrl
+                        ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                        : 'bg-[#FDFCF0] text-[#78350F]/50 hover:bg-[#78350F]/10'
+                    }`}
+                    title="Dowód wykonania (zdjęcie przed/po)"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
       {/* Main Dashboard Bento Widgets */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         {/* Shopping & Wallet Summary Widget */}
@@ -413,82 +548,61 @@ export const TodayView: React.FC<TodayViewProps> = ({
         </div>
       </div>
 
-      {/* Przestrzenna mapa — dostępna we Wspólnym (read-only dla wszystkich) */}
-      <div className="bg-white rounded-[24px] border border-[#78350F]/10 shadow-xs overflow-hidden">
-        <div className="p-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-[#2D4F1E] flex items-center gap-2">
-              <Home className="w-4 h-4 text-[#2D4F1E]" /> Mapa przestrzenna — 7 pomieszczeń
-            </h3>
-            <p className="text-[11px] text-[#78350F]/70">Panel Wspólny — każdy domownik wchodzi w pokój i widzi oś czasu. Edycja tylko w Zarządzaniu (Kamil).</p>
-          </div>
-          <span className="hidden sm:inline text-[10px] bg-[#FDFCF0] border border-[#78350F]/10 px-2 py-1 rounded-full font-bold">Wspólny • podgląd</span>
-        </div>
-        {(() => {
-          const floors: { name: string; icon: any; rooms: string[] }[] = [
-            { name: 'Dół', icon: Home, rooms: ['Dół Ganek+Kotłownia', 'Kuchnia', 'Łazienka'] },
-            { name: 'Góra', icon: Layers, rooms: ['Sypialnia Góra', 'Pokój Olivii', 'Góra Przedpokój', 'Schody'] },
-          ];
-          return (
-            <div className="space-y-3 p-3 pt-0">
-              {floors.map(floor => {
-                const FloorIcon = floor.icon;
-                return (
-                  <div key={floor.name} className="rounded-2xl border border-[#78350F]/10 overflow-hidden">
-                    <div className="px-3 py-2 bg-[#FDFCF0] border-b border-[#78350F]/10 flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-xl bg-[#2D4F1E] text-white flex items-center justify-center"><FloorIcon className="w-3.5 h-3.5" /></div>
-                      <span className="text-xs font-bold text-[#2D4F1E]">{floor.name}</span>
-                      <span className="text-[10px] text-[#78350F]/50">{floor.rooms.length} pom.</span>
-                    </div>
-                    <div className="p-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {floor.rooms.map(room => {
-                        const zonesForRoom = visualZones.filter(z => {
-                          const zn = z.name.toLowerCase();
-                          const rn = room.toLowerCase();
-                          if (rn.includes('+')) {
-                            const parts = rn.split('+').map(s => s.replace('dół','').replace('góra','').trim()).filter(Boolean);
-                            return parts.some(p => zn.includes(p));
-                          }
-                          const clean = rn.replace('dół','').replace('góra','').trim();
-                          return zn.includes(clean) || clean.includes(zn);
-                        });
-                        const hasZone = zonesForRoom.length > 0;
-                        if (!hasZone) {
-                          return (
-                            <div key={room} className="rounded-xl border-2 border-dashed border-[#78350F]/15 p-3 min-h-[110px] flex flex-col items-center justify-center bg-[#FDFCF0]/30">
-                              <div className="text-[11px] font-bold text-[#2D4F1E] text-center">{room}</div>
-                              <div className="text-[10px] text-[#78350F]/50">Brak strefy</div>
-                              <div className="text-[10px] text-[#78350F]/40 mt-1 text-center">{isAdmin ? 'Dodaj w Zarządzaniu' : '—'}</div>
-                            </div>
-                          );
-                        }
-                        return zonesForRoom.map(zone => {
-                          const latest = zone.entries[zone.entries.length - 1];
-                          const thumb = latest?.thumbnailUrl || latest?.mediaUrl;
-                          const isVideo = latest?.mediaType === 'video';
-                          return (
-                            <button key={zone.id} onClick={() => setSelectedVisualZone(zone)} className="rounded-xl border border-[#78350F]/10 overflow-hidden bg-white hover:border-[#D97706]/40 hover:shadow-sm text-left group">
-                              <div className="h-[84px] bg-[#FDFCF0] relative overflow-hidden">
-                                {thumb ? <img src={thumb} alt={zone.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="w-full h-full flex items-center justify-center text-xl">🏠</div>}
-                                {isVideo && <span className="absolute top-1 left-1 bg-[#D97706] text-white text-[9px] font-bold px-1 py-0.5 rounded-full flex items-center gap-0.5"><Video className="w-3 h-3" /> wideo</span>}
-                                <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded-full">{zone.entries.length} wpisów</span>
-                              </div>
-                              <div className="p-2">
-                                <div className="text-xs font-bold truncate flex items-center gap-1"><Eye className="w-3 h-3 text-[#78350F]/50" /> {zone.name}</div>
-                                <div className="text-[10px] text-[#78350F]/60">Wejdź → oś czasu</div>
-                              </div>
-                            </button>
-                          );
-                        });
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+      {/* Przestrzenna mapa — dynamiczna, pogrupowana wg typu strefy (read-only dla wszystkich) */}
+      {visualZones.length > 0 && (
+        <div className="bg-white rounded-[24px] border border-[#78350F]/10 shadow-xs overflow-hidden">
+          <div className="p-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-[#2D4F1E] flex items-center gap-2">
+                <Home className="w-4 h-4 text-[#2D4F1E]" /> Mapa przestrzenna — {visualZones.length}{' '}
+                {visualZones.length === 1 ? 'strefa' : visualZones.length < 5 ? 'strefy' : 'stref'}
+              </h3>
+              <p className="text-[11px] text-[#78350F]/70">Panel Wspólny — każdy domownik wchodzi w pokój i widzi oś czasu. Edycja tylko w Zarządzaniu (Kamil).</p>
             </div>
-          );
-        })()}
-      </div>
+            <span className="hidden sm:inline text-[10px] bg-[#FDFCF0] border border-[#78350F]/10 px-2 py-1 rounded-full font-bold">Wspólny • podgląd</span>
+          </div>
+          <div className="space-y-3 p-3 pt-0">
+            {([
+              { type: 'room', label: 'Pomieszczenia', icon: Home },
+              { type: 'garden', label: 'Ogród', icon: TreePine },
+              { type: 'utility', label: 'Techniczne', icon: Layers },
+            ] as const).map(group => {
+              const zonesInGroup = visualZones.filter(z => z.zoneType === group.type);
+              if (zonesInGroup.length === 0) return null;
+              const GroupIcon = group.icon;
+              return (
+                <div key={group.type} className="rounded-2xl border border-[#78350F]/10 overflow-hidden">
+                  <div className="px-3 py-2 bg-[#FDFCF0] border-b border-[#78350F]/10 flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-[#2D4F1E] text-white flex items-center justify-center"><GroupIcon className="w-3.5 h-3.5" /></div>
+                    <span className="text-xs font-bold text-[#2D4F1E]">{group.label}</span>
+                    <span className="text-[10px] text-[#78350F]/50">{zonesInGroup.length}</span>
+                  </div>
+                  <div className="p-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {zonesInGroup.map(zone => {
+                      const latest = zone.entries[zone.entries.length - 1];
+                      const thumb = latest?.thumbnailUrl || latest?.mediaUrl;
+                      const isVideo = latest?.mediaType === 'video';
+                      return (
+                        <button key={zone.id} onClick={() => setSelectedVisualZone(zone)} className="rounded-xl border border-[#78350F]/10 overflow-hidden bg-white hover:border-[#D97706]/40 hover:shadow-sm text-left group">
+                          <div className="h-[84px] bg-[#FDFCF0] relative overflow-hidden">
+                            {thumb ? <img src={thumb} alt={zone.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="w-full h-full flex items-center justify-center text-xl">🏠</div>}
+                            {isVideo && <span className="absolute top-1 left-1 bg-[#D97706] text-white text-[9px] font-bold px-1 py-0.5 rounded-full flex items-center gap-0.5"><Video className="w-3 h-3" /> wideo</span>}
+                            <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded-full">{zone.entries.length} wpisów</span>
+                          </div>
+                          <div className="p-2">
+                            <div className="text-xs font-bold truncate flex items-center gap-1"><Eye className="w-3 h-3 text-[#78350F]/50" /> {zone.name}</div>
+                            <div className="text-[10px] text-[#78350F]/60">Wejdź → oś czasu</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Mini Calendar Widget */}
       <MiniCalendarWidget

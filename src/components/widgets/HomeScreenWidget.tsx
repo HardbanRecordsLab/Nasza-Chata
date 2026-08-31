@@ -145,7 +145,7 @@ export const HomeScreenWidget: React.FC<HomeScreenWidgetProps> = ({
           <p className="text-lg font-display font-extrabold text-[#D97706] leading-tight mt-0.5">
             {woodInventory.estimatedM3.toFixed(1)} <span className="text-xs font-medium">m³</span>
           </p>
-          <p className="text-[9px] text-[#78350F]/60">Pojemność 14 m³</p>
+          <p className="text-[9px] text-[#78350F]/60">Pojemność {woodInventory.totalCapacityM3} m³</p>
         </div>
 
         {/* Metric 3: Boiler Room Logs */}
@@ -244,8 +244,8 @@ export const HomeScreenWidget: React.FC<HomeScreenWidgetProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-base" title={occ.task.category}>
-                    {getTaskIcon(occ.task.category, 'w-4 h-4 text-[#D97706]')}
+                  <span className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center" title={occ.task.category}>
+                    {getTaskIcon(occ.task.name, occ.task.category, isDone)}
                   </span>
                 </div>
               </div>
