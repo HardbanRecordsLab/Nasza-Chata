@@ -150,7 +150,8 @@ export const AdminPlanView: React.FC = () => {
   const weekOccurrences = useMemo(() => {
     return weekDays.map(d => ({
       date: d,
-      occ: getOccurrencesForDate(tasks, completions, d),
+      // Weekly plan = tasks actually scheduled that day, not the "everything overdue" firehose
+      occ: getOccurrencesForDate(tasks, completions, d, { onlyScheduled: true, includeOverdue: false }),
     }));
   }, [weekDays, tasks, completions]);
 
@@ -458,7 +459,7 @@ export const AdminPlanView: React.FC = () => {
               {weekDays.map(d => {
                 const dayStr = format(d, 'yyyy-MM-dd');
                 const isToday = format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-                const occ = getOccurrencesForDate(tasks, completions, d);
+                const occ = weekOccurrences.find(w => format(w.date, 'yyyy-MM-dd') === dayStr)?.occ ?? [];
                 // sort: assigned first
                 const sorted = [...occ].sort((a, b) => {
                   const ae = weeklyPlan?.assignments[a.task.id] ?? a.task.assignedTo ?? '';
