@@ -4,9 +4,11 @@ import { useChata } from '../../context/ChataContext';
 
 interface SosModalProps {
   onClose: () => void;
+  /** Override the reporter name — used by the read-only guest view. */
+  reporterName?: string;
 }
 
-export const SosModal: React.FC<SosModalProps> = ({ onClose }) => {
+export const SosModal: React.FC<SosModalProps> = ({ onClose, reporterName }) => {
   const { currentProfile, createSosAlert, showToast } = useChata();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -47,8 +49,8 @@ export const SosModal: React.FC<SosModalProps> = ({ onClose }) => {
       description: description.trim(),
       urgency,
       room,
-      reportedById: currentProfile.id,
-      reportedByName: currentProfile.name,
+      reportedById: reporterName ? 'guest' : currentProfile.id,
+      reportedByName: reporterName || currentProfile.name,
       photoUrl: photoUrl || undefined,
     });
     onClose();

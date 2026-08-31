@@ -15,6 +15,7 @@ import { NotificationSettingsModal } from './components/modals/NotificationSetti
 import { PwaWidgetModal } from './components/modals/PwaWidgetModal';
 import { ScanHandwrittenModal } from './components/modals/ScanHandwrittenModal';
 import { HomeScreenWidget } from './components/widgets/HomeScreenWidget';
+import { GuestView, GuestTopic } from './components/views/GuestView';
 import { ToastContainer } from './components/ToastContainer';
 import { getOccurrencesForDate } from './utils/recurrenceEngine';
 import { initServiceWorker } from './utils/notificationService';
@@ -30,6 +31,7 @@ const MainApp: React.FC = () => {
   const [isWidgetModalOpen, setIsWidgetModalOpen] = useState(false);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isWidgetOnlyMode, setIsWidgetOnlyMode] = useState(false);
+  const [guestTopic, setGuestTopic] = useState<GuestTopic | null>(null);
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | undefined>(undefined);
 
   // Initialize service worker and check query params on mount
@@ -39,6 +41,10 @@ const MainApp: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('widget') === 'today' || params.get('widget') === '1') {
       setIsWidgetOnlyMode(true);
+    }
+    const gm = params.get('guest_mode');
+    if (gm === 'boiler' || gm === 'garden' || gm === 'general') {
+      setGuestTopic(gm);
     }
     if (params.get('action') === 'sos') {
       setIsSosOpen(true);
@@ -52,6 +58,11 @@ const MainApp: React.FC = () => {
   const todayOccurrences = getOccurrencesForDate(tasks, completions, new Date());
   const pendingTodayCount = todayOccurrences.filter(o => !o.isCompleted).length;
   const pendingShoppingCount = shoppingItems.filter(s => !s.isBought).length;
+
+  // Guest / technician link — restricted read-only view, no tabs / finances / admin
+  if (guestTopic) {
+    return <GuestView topic={guestTopic} />;
+  }
 
   // Standalone Mini Widget Mode (ideal for PWA widget popouts, second screens, smart home tablets)
   if (isWidgetOnlyMode) {
