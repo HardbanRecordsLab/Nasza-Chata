@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useChata } from '../../context/ChataContext';
 import { compressImage } from '../../utils/imageCompression';
+import { normalizeExpenseCategory } from '../../constants/categories';
 import { X, Camera, Sparkles, Receipt, Loader2, Check, Upload, ImageOff } from 'lucide-react';
 
 interface ScanReceiptModalProps {
@@ -117,7 +118,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({ onClose, onR
         itemsCount: rawItems.length || data.itemsCount || 1,
         merchant: data.note || data.merchant || 'Nieznany sklep',
         date: data.date || new Date().toISOString().split('T')[0],
-        category: data.category || 'Spożywcze & Dom',
+        category: normalizeExpenseCategory(data.category),
         items: rawItems,
       };
 

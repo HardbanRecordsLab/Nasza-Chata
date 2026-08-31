@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ScanReceiptModal } from '../modals/ScanReceiptModal';
 import { BarcodeScannerModal } from '../modals/BarcodeScannerModal';
+import { EXPENSE_CATEGORIES } from '../../constants/categories';
 
 export const ShoppingView: React.FC = () => {
   const {
@@ -612,11 +613,9 @@ export const ShoppingView: React.FC = () => {
                 onChange={e => setExpCategory(e.target.value)}
                 className="sm:col-span-3 px-3 py-2.5 bg-[#FDFCF0] border border-[#78350F]/15 rounded-xl text-xs font-semibold text-[#78350F] focus:outline-none focus:ring-2 focus:ring-[#2D4F1E]/40"
               >
-                <option value="Spożywcze & Dom">🍞 Spożywcze & Dom</option>
-                <option value="Opał & Drewno">🪵 Opał & Drewno</option>
-                <option value="Ogród & Rośliny">🌿 Ogród & Rośliny</option>
-                <option value="Narzędzia & Dom">🔧 Remont & Naprawy</option>
-                <option value="Inne">📦 Inne</option>
+                {EXPENSE_CATEGORIES.map(c => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
               </select>
 
               <button
@@ -755,7 +754,7 @@ export const ShoppingView: React.FC = () => {
           </div>
 
           <div className="bg-white rounded-[32px] border border-[#78350F]/10 p-4 shadow-xs space-y-3">
-            {['Spożywcze & Dom', 'Chemia', 'Inne'].map(cat => {
+            {EXPENSE_CATEGORIES.map(c => c.value).map(cat => {
               const limit = budgetLimits[cat]?.limit || 0;
               const spent = expenses.filter(e => e.category === cat && new Date(e.date).getMonth() === new Date().getMonth()).reduce((s, e) => s + e.amount, 0);
               const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
