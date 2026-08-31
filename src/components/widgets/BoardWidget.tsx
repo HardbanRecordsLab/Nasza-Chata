@@ -29,7 +29,7 @@ export const BoardWidget: React.FC = () => {
           </div>
           <div>
             <h3 className="text-sm font-bold text-[#2D4F1E]">Tablica wiadomości</h3>
-            <p className="text-[11px] text-[#78350F]/60">Kurier po 15 • wspólna, bez zadania • {boardMessages.length} wiadomości</p>
+            <p className="text-[11px] text-[#78350F]/60">Wspólne notatki dla domowników • {boardMessages.length} {boardMessages.length === 1 ? 'wiadomość' : 'wiadomości'}</p>
           </div>
         </div>
         <span className="text-[10px] bg-white border border-[#78350F]/10 px-2 py-1 rounded-full">Wspólna</span>

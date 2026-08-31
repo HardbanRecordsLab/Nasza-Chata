@@ -22,6 +22,7 @@ import {
 import { useChata } from '../../context/ChataContext';
 import { ScannedTaskProposal, TaskCategory, FrequencyType } from '../../types';
 import { getTaskIcon } from '../icons/CustomChataIcons';
+import { compressImage } from '../../utils/imageCompression';
 import confetti from 'canvas-confetti';
 
 interface ScanHandwrittenModalProps {
@@ -134,16 +135,12 @@ export const ScanHandwrittenModal: React.FC<ScanHandwrittenModalProps> = ({ onCl
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      analyzeImage(base64);
-    };
-    reader.readAsDataURL(file);
+    // Compress before sending — a raw phone photo can exceed Vercel's ~4.5 MB request-body limit
+    const base64 = await compressImage(file, 1600, 0.8);
+    analyzeImage(base64);
   };
 
   const handleLoadSample = (sampleId: string) => {
@@ -255,6 +252,10 @@ export const ScanHandwrittenModal: React.FC<ScanHandwrittenModalProps> = ({ onCl
     }
 
     selectedItems.forEach(item => {
+      // If the AI suggested a real household member, actually assign the task to them
+      const match = profiles.find(
+        p => p.name.toLowerCase() === (item.suggestedAssignee || '').trim().toLowerCase()
+      );
       addTask({
         name: item.name.trim(),
         category: item.category,
@@ -265,6 +266,8 @@ export const ScanHandwrittenModal: React.FC<ScanHandwrittenModalProps> = ({ onCl
         isCustom: true,
         defaultOrder: 20,
         weatherSensitive: item.weatherSensitive,
+        assignedTo: match ? match.id : null,
+        assignedToName: match ? match.name : null,
         description: item.notes
           ? `${item.notes} (Zeskanowano z odręcznej kartki: ${item.suggestedAssignee || 'Wszyscy'})`
           : `Zadanie zeskanowane z odręcznej kartki (Sugerowany wykonawca: ${item.suggestedAssignee || 'Wszyscy'}).`,

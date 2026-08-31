@@ -42,7 +42,7 @@ export default async function handler(req: Request | any, res: Response | any) {
 }
 
 async function handleChat(body: any, res: Response) {
-  const { message } = body;
+  const { message, history } = body;
   if (!message) return res.status(400).json({ error: 'Brak wiadomości' });
 
   const db = await getDbState();
@@ -53,6 +53,13 @@ async function handleChat(body: any, res: Response) {
       reply: `Cześć! Jestem asystentem „Naszej Chaty". (Aby włączyć pełne odpowiedzi AI, skonfiguruj GEMINI_API_KEY). Aktualnie: ${db.tasks?.length ?? 0} zadań, ${db.woodInventory?.estimatedM3 ?? 0} m³ drewna.`,
     });
   }
+
+  const historyText = Array.isArray(history)
+    ? history
+        .slice(-8)
+        .map((m: any) => `${m.role === 'user' ? 'Domownik' : 'Asystent'}: ${String(m.text || '').slice(0, 800)}`)
+        .join('\n')
+    : '';
 
   const contextPrompt = `
 Jesteś przyjaznym asystentem domowym dla rodziny (Kamil, Ilona, Olivia).
@@ -65,8 +72,9 @@ STAN DOMU:
 - Zadania: ${db.tasks?.length ?? 0}
 - Wydatki: ${db.expenses?.length ?? 0}
 - Zakupy do zrobienia: ${(db.shoppingItems || []).filter((s: any) => !s.isBought).map((s: any) => s.name).join(', ') || 'brak'}
-
-Wiadomość: ${message}`;
+${historyText ? `\nDOTYCHCZASOWA ROZMOWA:\n${historyText}\n` : ''}
+Domownik: ${message}
+Asystent:`;
 
   const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents: contextPrompt });
   return res.status(200).json({ reply: response.text || 'Wszystko w porządku!' });
@@ -78,12 +86,18 @@ async function handleScanChoresVision(body: any, res: Response) {
 
   const ai = getAI();
   if (!ai) {
+    const now = Date.now();
     return res.status(200).json({
       aiPowered: false,
-      noteTitle: 'Lista obowiązków (Podgląd)',
-      rawTranscription: '1. Uzupełnić drewno\n2. Wyczyścić ruszt\n3. Skosić trawnik',
-      summary: 'Demo — skonfiguruj GEMINI_API_KEY.',
-      items: [],
+      noteTitle: 'Lista obowiązków (Podgląd demo)',
+      rawTranscription: '1. Uzupełnić drewno w kotłowni\n2. Wyczyścić ruszt i wybrać popiół\n3. Skosić trawnik\n4. Przetrzeć blaty w kuchni',
+      summary: 'Demo — skonfiguruj GEMINI_API_KEY, aby czytać własne kartki.',
+      items: [
+        { id: `prop-${now}-0`, name: 'Uzupełnić drewno w kotłowni', category: 'wood', frequency: 'weekly', room: 'Kotłownia', suggestedAssignee: 'Kamil', estimatedMinutes: 20, weatherSensitive: false, confidence: 'high', selected: true },
+        { id: `prop-${now}-1`, name: 'Wyczyścić ruszt i wybrać popiół', category: 'stove', frequency: 'every_other_day', room: 'Kotłownia', suggestedAssignee: 'Kamil', estimatedMinutes: 15, weatherSensitive: false, confidence: 'high', selected: true },
+        { id: `prop-${now}-2`, name: 'Skosić trawnik', category: 'garden', frequency: 'weekly', room: 'Ogród', suggestedAssignee: 'Wszyscy', estimatedMinutes: 45, weatherSensitive: true, confidence: 'high', selected: true },
+        { id: `prop-${now}-3`, name: 'Przetrzeć blaty w kuchni', category: 'cleaning', frequency: 'daily', room: 'Kuchnia', suggestedAssignee: 'Ilona', estimatedMinutes: 10, weatherSensitive: false, confidence: 'high', selected: true },
+      ],
     });
   }
 

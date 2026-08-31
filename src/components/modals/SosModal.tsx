@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Camera, X, Check, Flame, Wrench } from 'lucide-react';
 import { useChata } from '../../context/ChataContext';
+import { compressImage } from '../../utils/imageCompression';
 
 interface SosModalProps {
   onClose: () => void;
@@ -27,14 +28,10 @@ export const SosModal: React.FC<SosModalProps> = ({ onClose, reporterName }) => 
     'Inne',
   ];
 
-  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPhotoUrl(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    setPhotoUrl(await compressImage(file, 1280, 0.75));
   };
 
   const handleSubmit = (e: React.FormEvent) => {

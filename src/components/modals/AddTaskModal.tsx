@@ -3,6 +3,7 @@ import { Mic, MicOff, Camera, X, Plus, Sparkles, Loader2, Calendar, MapPin, Repe
 import { FrequencyType, TaskCategory, TaskDefinition } from '../../types';
 import { useChata } from '../../context/ChataContext';
 import { getTaskIcon } from '../icons/CustomChataIcons';
+import { compressImage } from '../../utils/imageCompression';
 
 interface AddTaskModalProps {
   onClose: () => void;
@@ -93,63 +94,60 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ onClose, taskToEdit 
     setIsScanning(true);
     showToast('Analizowanie zdjęcia...', 'AI odczytuje odręczną listę zadań', 'info');
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const base64 = reader.result as string;
-        const res = await fetch('/api/ai?action=scan-chores-vision', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageBase64: base64,
-            familyProfiles: profiles.map(p => `${p.name} (${p.roleTitle})`),
-            houseContext: 'Dom jednorodzinny z kotłownią, drewutnią, piecem CO i ogrodem.',
-          }),
-        });
-        const data = await res.json();
+    try {
+      // Compress before upload — raw phone photos exceed Vercel's ~4.5 MB body limit
+      const base64 = await compressImage(file, 1600, 0.8);
+      const res = await fetch('/api/ai?action=scan-chores-vision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: base64,
+          familyProfiles: profiles.map(p => `${p.name} (${p.roleTitle})`),
+          houseContext: 'Dom jednorodzinny z kotłownią, drewutnią, piecem CO i ogrodem.',
+        }),
+      });
+      const data = await res.json();
 
-        if (data.items && data.items.length > 0) {
-          const first = data.items[0];
-          setName(first.name);
-          if (first.category) setCategory(first.category);
-          if (first.frequency) setFrequency(first.frequency);
-          if (first.room) setRoom(first.room);
-          if (first.weatherSensitive !== undefined) setWeatherSensitive(first.weatherSensitive);
-          if (first.notes) setDescription(first.notes);
+      if (data.items && data.items.length > 0) {
+        const first = data.items[0];
+        setName(first.name);
+        if (first.category) setCategory(first.category);
+        if (first.frequency) setFrequency(first.frequency);
+        if (first.room) setRoom(first.room);
+        if (first.weatherSensitive !== undefined) setWeatherSensitive(first.weatherSensitive);
+        if (first.notes) setDescription(first.notes);
 
-          // If multiple items, add the rest directly to tasks registry
-          if (data.items.length > 1) {
-            for (let i = 1; i < data.items.length; i++) {
-              const it = data.items[i];
-              addTask({
-                name: it.name,
-                category: it.category || 'cleaning',
-                frequency: it.frequency || 'weekly',
-                room: it.room || 'Dom',
-                seasonStart: null,
-                seasonEnd: null,
-                isCustom: true,
-                defaultOrder: 15,
-                weatherSensitive: !!it.weatherSensitive,
-                description: it.notes
-                  ? `${it.notes} (Zeskanowano z odręcznej kartki: ${it.suggestedAssignee || 'Wszyscy'})`
-                  : `Zadanie zeskanowane z odręcznej kartki (Wykonawca: ${it.suggestedAssignee || 'Wszyscy'}).`,
-              });
-            }
-            showToast('Zeskanowano listę!', `Wczytano ${data.items.length} zadań z odręcznej notatki.`, 'success');
-          } else {
-            showToast('Rozpoznano zadanie!', first.name, 'success');
+        // If multiple items, add the rest directly to tasks registry
+        if (data.items.length > 1) {
+          for (let i = 1; i < data.items.length; i++) {
+            const it = data.items[i];
+            addTask({
+              name: it.name,
+              category: it.category || 'cleaning',
+              frequency: it.frequency || 'weekly',
+              room: it.room || 'Dom',
+              seasonStart: null,
+              seasonEnd: null,
+              isCustom: true,
+              defaultOrder: 15,
+              weatherSensitive: !!it.weatherSensitive,
+              description: it.notes
+                ? `${it.notes} (Zeskanowano z odręcznej kartki: ${it.suggestedAssignee || 'Wszyscy'})`
+                : `Zadanie zeskanowane z odręcznej kartki (Wykonawca: ${it.suggestedAssignee || 'Wszyscy'}).`,
+            });
           }
+          showToast('Zeskanowano listę!', `Wczytano ${data.items.length} zadań z odręcznej notatki.`, 'success');
         } else {
-          showToast('Brak zadań', 'Nie znaleziono czytelnych pozycji na zdjęciu.', 'warning');
+          showToast('Rozpoznano zadanie!', first.name, 'success');
         }
-      } catch (err) {
-        showToast('Błąd skanowania', 'Wystąpił problem z rozpoznawaniem tekstu.', 'error');
-      } finally {
-        setIsScanning(false);
+      } else {
+        showToast('Brak zadań', 'Nie znaleziono czytelnych pozycji na zdjęciu.', 'warning');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      showToast('Błąd skanowania', 'Wystąpił problem z rozpoznawaniem tekstu.', 'error');
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

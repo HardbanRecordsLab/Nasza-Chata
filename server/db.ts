@@ -56,6 +56,39 @@ let memoryState: DatabaseSchema = {
 
 let memoryPushSubscriptions: PushSubscriptionRecord[] = [];
 
+// Monotonic version of the stored state — bumped on every save. Used for
+// optimistic-concurrency merge so two devices syncing within the debounce
+// window don't clobber each other's additions.
+let stateVersion = Date.now();
+
+// Collections that are mostly appended to (rarely edited in place). On a
+// concurrent-write conflict these are UNION-merged by id so nobody's new
+// entry is lost. Everything else is last-write-wins (needed for deletes/edits).
+const APPEND_HEAVY: (keyof DatabaseSchema)[] = [
+  'completions',
+  'expenses',
+  'comments',
+  'sosAlerts',
+  'boardMessages',
+  'familyEvents',
+  'equipmentHistory',
+];
+
+function mergeById(existing: any[], incoming: any[]): any[] {
+  const byId = new Map<string, any>();
+  for (const item of Array.isArray(existing) ? existing : []) {
+    if (item && item.id != null) byId.set(String(item.id), item);
+  }
+  for (const item of Array.isArray(incoming) ? incoming : []) {
+    if (item && item.id != null) byId.set(String(item.id), item); // incoming wins on id clash
+  }
+  return [...byId.values()];
+}
+
+export function getStateVersion(): number {
+  return stateVersion;
+}
+
 // Postgres Pool Setup
 let pgPool: Pool | null = null;
 let isPgInitialized = false;
@@ -149,9 +182,14 @@ export async function getDbState(): Promise<DatabaseSchema> {
   if (pool) {
     try {
       await initPostgresTables(pool);
-      const res = await pool.query('SELECT data FROM chata_store WHERE key = $1', ['main_state']);
+      const res = await pool.query(
+        `SELECT data, (EXTRACT(EPOCH FROM updated_at) * 1000)::bigint AS v FROM chata_store WHERE key = $1`,
+        ['main_state']
+      );
       if (res.rows.length > 0 && res.rows[0].data) {
         memoryState = res.rows[0].data;
+        const v = Number(res.rows[0].v);
+        if (Number.isFinite(v) && v > 0) stateVersion = v;
         return memoryState;
       }
     } catch (err) {
@@ -162,12 +200,32 @@ export async function getDbState(): Promise<DatabaseSchema> {
 }
 
 /**
- * Save full state of the app
+ * Save full state of the app.
+ * @param baseVersion the stateVersion the client last saw; if the stored state
+ *   moved on since then, append-heavy collections are union-merged instead of replaced.
  */
-export async function saveDbState(incoming: Partial<DatabaseSchema>): Promise<DatabaseSchema> {
+export async function saveDbState(
+  incoming: Partial<DatabaseSchema>,
+  baseVersion?: number
+): Promise<DatabaseSchema> {
   if (!incoming || typeof incoming !== 'object') {
     return memoryState;
   }
+
+  // Refresh version + memoryState from the store so a concurrent write is visible
+  await getDbState();
+
+  const stale = typeof baseVersion === 'number' && baseVersion > 0 && baseVersion < stateVersion;
+  const src: Partial<DatabaseSchema> = { ...incoming };
+  if (stale) {
+    for (const key of APPEND_HEAVY) {
+      if (Array.isArray((incoming as any)[key])) {
+        (src as any)[key] = mergeById((memoryState as any)[key] || [], (incoming as any)[key]);
+      }
+    }
+  }
+
+  incoming = src;
   memoryState = {
     tasks: Array.isArray(incoming.tasks) ? incoming.tasks : memoryState.tasks,
     completions: Array.isArray(incoming.completions) ? incoming.completions : memoryState.completions,
@@ -190,19 +248,23 @@ export async function saveDbState(incoming: Partial<DatabaseSchema>): Promise<Da
     equipmentHistory: Array.isArray((incoming as any).equipmentHistory) ? (incoming as any).equipmentHistory : (memoryState as any).equipmentHistory ?? [],
   };
 
+  stateVersion = Date.now();
   writeLocalJson(memoryState);
 
   const pool = getPgPool();
   if (pool) {
     try {
       await initPostgresTables(pool);
-      await pool.query(
+      const res = await pool.query(
         `INSERT INTO chata_store (key, data, updated_at)
          VALUES ($1, $2, NOW())
          ON CONFLICT (key) DO UPDATE
-         SET data = EXCLUDED.data, updated_at = NOW()`,
+         SET data = EXCLUDED.data, updated_at = NOW()
+         RETURNING (EXTRACT(EPOCH FROM updated_at) * 1000)::bigint AS v`,
         ['main_state', JSON.stringify(memoryState)]
       );
+      const v = Number(res.rows?.[0]?.v);
+      if (Number.isFinite(v) && v > 0) stateVersion = v;
     } catch (err) {
       console.warn('[DB] PostgreSQL write error:', err);
     }

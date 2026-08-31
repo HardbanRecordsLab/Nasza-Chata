@@ -46,17 +46,13 @@ export async function stitchPanorama(dataUrls: string[]): Promise<string | null>
       // Simple exposure compensation: adjust brightness to average
       // For MVP, just draw with blend at overlap
       if (i > 0) {
-        // Draw with soft blend at left edge (gradient alpha)
+        // Draw the overlapping slice (crop the left `overlap` portion that duplicates the previous frame)
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = Math.round(drawW);
         tempCanvas.height = scaledH;
         const tCtx = tempCanvas.getContext('2d');
         if (tCtx) {
           tCtx.drawImage(img, sx, 0, sw, img.height, 0, 0, drawW, scaledH);
-          // Blend left 20px
-          const blendW = Math.min(40, drawW * 0.15);
-          const imageData = tCtx.getImageData(0, 0, Math.round(drawW), scaledH);
-          // Keep as is for MVP — simple draw
           ctx.drawImage(tempCanvas, x, 0);
         }
       } else {
@@ -77,6 +73,7 @@ export async function stitchPanorama(dataUrls: string[]): Promise<string | null>
 function loadImage(dataUrl: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous'; // allow canvas readback for Blob-hosted photos
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
     img.src = dataUrl;

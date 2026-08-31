@@ -40,13 +40,21 @@ export const ProofModal: React.FC<ProofModalProps> = ({ occurrence, onClose }) =
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 15 * 1024 * 1024) {
-      showToast('Plik za duży', 'Maksymalny rozmiar zdjęcia/wideo to 15MB.', 'error');
+    const isVid = file.type.startsWith('video');
+
+    // Zdjęcia są kompresowane niżej; wideo idzie w base64 przez serverless,
+    // gdzie limit body to ~4.5 MB — nagraj krótki, ~10 s klip.
+    const maxBytes = isVid ? 3 * 1024 * 1024 : 15 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      showToast(
+        'Plik za duży',
+        isVid ? 'Wideo max ~3 MB (ok. 10 s). Nagraj krótszy klip.' : 'Zdjęcie max 15 MB.',
+        'error'
+      );
       e.target.value = '';
       return;
     }
 
-    const isVid = file.type.startsWith('video');
     if (isVid) setProofType('video');
 
     setIsUploading(true);

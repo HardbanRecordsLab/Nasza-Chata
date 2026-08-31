@@ -28,6 +28,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose }) =
 
     const userText = input.trim();
     setInput('');
+    const history = messages.slice(-8).map(m => ({ role: m.role, text: m.text }));
     setMessages(prev => [...prev, { role: 'user', text: userText }]);
     setLoading(true);
 
@@ -35,7 +36,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose }) =
       const res = await fetch('/api/ai?action=chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userText }),
+        body: JSON.stringify({ message: userText, history }),
       });
       const data = await res.json();
       setMessages(prev => [...prev, { role: 'assistant', text: data.reply || 'Nie otrzymałem odpowiedzi.' }]);

@@ -223,6 +223,10 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [familyEvents, setFamilyEvents] = useState<FamilyEvent[]>([]);
   const [equipmentHistory, setEquipmentHistory] = useState<EquipmentServiceEntry[]>([]);
 
+  // Version of the state the server last confirmed — sent back on POST so the
+  // server can union-merge if another device wrote in the meantime.
+  const serverVersionRef = useRef<number>(0);
+
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const showToast = useCallback((title: string, message?: string, type: 'success' | 'info' | 'warning' | 'error' = 'info') => {
@@ -275,6 +279,7 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       .then(res => res.json())
       .then(data => {
         if (!data || typeof data !== 'object') return;
+        if (typeof (data as any)._v === 'number') serverVersionRef.current = (data as any)._v;
 
         const applyArray = <T,>(val: unknown, setter: (v: T[]) => void) => {
           if (Array.isArray(val) && val.length > 0) setter(val as T[]);
@@ -348,12 +353,18 @@ export const ChataProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (e) {
       console.warn('LocalStorage persistence error:', e);
     }
-    // fire-and-forget server sync (debounced by caller)
+    // fire-and-forget server sync (debounced by caller). _baseV lets the server
+    // union-merge append-heavy collections if another device wrote meanwhile.
     fetch('/api/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(stateUpdate),
-    }).catch(() => {});
+      body: JSON.stringify({ ...stateUpdate, _baseV: serverVersionRef.current }),
+    })
+      .then(res => res.json())
+      .then(r => {
+        if (r && typeof r._v === 'number') serverVersionRef.current = r._v;
+      })
+      .catch(() => {});
   }, []);
 
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

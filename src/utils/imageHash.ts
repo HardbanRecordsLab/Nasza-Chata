@@ -6,6 +6,7 @@
 export function hashImageData(dataUrl: string): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = 8;
@@ -46,6 +47,7 @@ export function histogramDistance(aDataUrl: string, bDataUrl: string): Promise<n
 function getHistogram(dataUrl: string): Promise<number[]> {
   return new Promise((resolve) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = 32;
@@ -70,6 +72,7 @@ function getHistogram(dataUrl: string): Promise<number[]> {
 export function laplacianVariance(dataUrl: string): Promise<number> {
   return new Promise((resolve) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = 64;
