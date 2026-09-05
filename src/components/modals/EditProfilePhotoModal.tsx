@@ -20,7 +20,9 @@ export const EditProfilePhotoModal: React.FC<EditProfilePhotoModalProps> = ({
   const [selectedPhoto, setSelectedPhoto] = useState<string>(targetProfile.photoUrl || '');
   const [selectedAvatar, setSelectedAvatar] = useState<string>(targetProfile.avatar || '👨‍🌾');
   const [roleTitle, setRoleTitle] = useState<string>(targetProfile.roleTitle || '');
-  const [pin, setPin] = useState<string>(targetProfile.pin || '');
+  // Never pre-fill with the real PIN — the field starts empty. Leaving it empty on
+  // save keeps the existing PIN unchanged; typing 4 digits sets a new one.
+  const [pin, setPin] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -271,20 +273,25 @@ export const EditProfilePhotoModal: React.FC<EditProfilePhotoModalProps> = ({
             />
           </div>
 
-          {/* Edit PIN (Optional) */}
+          {/* Edit PIN (Optional) — never displays the current PIN, only sets a new one */}
           <div>
             <label className="block text-xs font-bold text-[#78350F] mb-1 flex items-center gap-1">
               <Lock className="w-3 h-3 text-[#78350F]" />
               Kod PIN (4 cyfry):
             </label>
             <input
-              type="text"
+              type="password"
+              inputMode="numeric"
               maxLength={4}
               value={pin}
               onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
-              placeholder="np. 1482"
+              placeholder={targetProfile.pin ? '•••• (zostaw puste bez zmian)' : 'Ustaw nowy PIN'}
+              autoComplete="new-password"
               className="w-full p-2.5 bg-white border border-[#78350F]/20 rounded-xl text-xs font-mono font-bold text-[#2D4F1E] tracking-widest focus:outline-none focus:ring-2 focus:ring-[#2D4F1E]/30"
             />
+            <p className="text-[10px] text-[#78350F]/50 mt-1">
+              {targetProfile.pin ? 'PIN jest ustawiony i ukryty. Wpisz 4 cyfry, aby go zmienić.' : 'Ten profil nie ma jeszcze PIN-u.'}
+            </p>
           </div>
         </div>
 
