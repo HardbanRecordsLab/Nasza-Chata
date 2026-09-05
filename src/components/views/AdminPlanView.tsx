@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useChata } from '../../context/ChataContext';
 import { getOccurrencesForDate } from '../../utils/recurrenceEngine';
-import { TaskCategory } from '../../types';
+import { TaskCategory, Profile } from '../../types';
 import { getTaskIcon } from '../icons/CustomChataIcons';
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -29,9 +29,11 @@ import {
   Plus,
   Eye,
   Video,
+  Pencil,
 } from 'lucide-react';
 import { ProfileAvatar } from '../common/ProfileAvatar';
 import { VisualZoneModal } from '../modals/VisualZoneModal';
+import { EditProfilePhotoModal } from '../modals/EditProfilePhotoModal';
 
 type InnerTab = 'assign' | 'weekly' | 'visual';
 
@@ -84,6 +86,7 @@ export const AdminPlanView: React.FC = () => {
 
   const isAdmin = currentProfile.isAdmin || currentProfile.id === 'kamil';
   const [innerTab, setInnerTab] = useState<InnerTab>('assign');
+  const [editProfileTarget, setEditProfileTarget] = useState<Profile | null>(null);
 
   // --- TAB 1: assignments ---
   const [search, setSearch] = useState('');
@@ -295,6 +298,29 @@ export const AdminPlanView: React.FC = () => {
 
       {innerTab === 'assign' && (
         <div className="space-y-4">
+          {/* Profile domowników — zdjęcie, rola, PIN */}
+          <div className="bg-white rounded-[24px] border border-[#78350F]/10 p-4 shadow-xs no-print">
+            <h3 className="text-xs font-bold text-[#2D4F1E] uppercase tracking-wide mb-3 flex items-center gap-2">
+              <Users className="w-3.5 h-3.5" /> Profile domowników — zdjęcie, rola, PIN
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {profiles.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setEditProfileTarget(p)}
+                  className="flex items-center gap-3 p-3 rounded-2xl border border-[#78350F]/10 hover:border-[#D97706]/40 hover:bg-[#FDFCF0]/60 transition-colors text-left group"
+                >
+                  <ProfileAvatar profile={p} size="lg" showAdminBadge={p.isAdmin || p.id === 'kamil'} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-bold text-[#2D4F1E] truncate">{p.name}</div>
+                    <div className="text-[11px] text-[#78350F]/60 truncate">{p.roleTitle}</div>
+                  </div>
+                  <Pencil className="w-3.5 h-3.5 text-[#78350F]/40 group-hover:text-[#D97706] shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Filters + bulk */}
           <div className="bg-white rounded-[24px] border border-[#78350F]/10 p-4 shadow-xs space-y-3 no-print">
             <div className="flex flex-col lg:flex-row gap-3">
@@ -761,6 +787,13 @@ export const AdminPlanView: React.FC = () => {
             <VisualZoneModal zone={visualZones.find(z=>z.id===selectedVisualZone.id) || selectedVisualZone} onClose={()=>setSelectedVisualZone(null)} />
           )}
         </div>
+      )}
+
+      {editProfileTarget && (
+        <EditProfilePhotoModal
+          profileToEdit={editProfileTarget}
+          onClose={() => setEditProfileTarget(null)}
+        />
       )}
 
       <style>{`
