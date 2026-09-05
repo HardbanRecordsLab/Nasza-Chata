@@ -51,6 +51,7 @@ export interface TaskDefinition {
   weatherSensitive?: boolean;
   description?: string;
   iconName?: string;
+  photoUrl?: string; // reference photo attached when creating the task (what/where to do it)
   createdAt: string;
   archivedAt: string | null;
 }

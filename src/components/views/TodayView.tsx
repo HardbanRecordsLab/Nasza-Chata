@@ -357,8 +357,12 @@ export const TodayView: React.FC<TodayViewProps> = ({
                     <Check className="w-4 h-4" />
                   </button>
 
-                  <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                    {getTaskIcon(occ.task.name, occ.task.category, isDone)}
+                  <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 overflow-hidden">
+                    {occ.task.photoUrl ? (
+                      <img src={occ.task.photoUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      getTaskIcon(occ.task.name, occ.task.category, isDone)
+                    )}
                   </div>
 
                   <button

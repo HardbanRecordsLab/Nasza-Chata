@@ -144,6 +144,21 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ occurrence, on
           </div>
         )}
 
+        {/* Reference photo attached when the task was created */}
+        {task.photoUrl && (
+          <div className="mb-5">
+            <h4 className="text-xs font-bold text-[#78350F] uppercase tracking-wide flex items-center gap-1.5 mb-2">
+              <Camera className="w-4 h-4 text-[#78350F]" />
+              Zdjęcie zadania
+            </h4>
+            <img
+              src={task.photoUrl}
+              alt={task.name}
+              className="w-full max-h-56 object-cover rounded-2xl border border-[#78350F]/15"
+            />
+          </div>
+        )}
+
         {/* Photo/Video Proof Button or Display */}
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">

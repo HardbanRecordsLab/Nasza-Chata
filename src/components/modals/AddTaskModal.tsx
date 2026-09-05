@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, Camera, X, Plus, Sparkles, Loader2, Calendar, MapPin, Repeat } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Mic, MicOff, Camera, Upload, Trash2, X, Plus, Sparkles, Loader2, Calendar, MapPin, Repeat } from 'lucide-react';
 import { FrequencyType, TaskCategory, TaskDefinition } from '../../types';
 import { useChata } from '../../context/ChataContext';
 import { getTaskIcon } from '../icons/CustomChataIcons';
-import { compressImage } from '../../utils/imageCompression';
+import { compressImage, uploadToBlob } from '../../utils/imageCompression';
 
 interface AddTaskModalProps {
   onClose: () => void;
@@ -23,12 +23,36 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ onClose, taskToEdit 
   const [seasonEnd, setSeasonEnd] = useState<number>(taskToEdit?.seasonEnd || 10);      // Paźdz
   const [weatherSensitive, setWeatherSensitive] = useState(taskToEdit?.weatherSensitive || false);
 
+  // Reference photo — "what/where to do it" (camera or upload)
+  const [photoUrl, setPhotoUrl] = useState<string>(taskToEdit?.photoUrl || '');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const taskCameraInputRef = useRef<HTMLInputElement>(null);
+  const taskFileInputRef = useRef<HTMLInputElement>(null);
+
   // Voice Recognition
   const [isListening, setIsListening] = useState(false);
   const [recognitionSupported, setRecognitionSupported] = useState(false);
 
   // OCR scanning state
   const [isScanning, setIsScanning] = useState(false);
+
+  const handleTaskPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const compressed = await compressImage(file, 1280, 0.8);
+      const blobUrl = await uploadToBlob(compressed, `task-${Date.now()}.jpg`, 'tasks', 'image/jpeg');
+      setPhotoUrl(blobUrl && blobUrl.startsWith('http') ? blobUrl : compressed);
+      showToast('Dodano zdjęcie', 'Widoczne przy zadaniu dla domowników.', 'success');
+    } catch {
+      showToast('Błąd zdjęcia', 'Nie udało się wgrać zdjęcia.', 'error');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -165,6 +189,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ onClose, taskToEdit 
         seasonStart: isSeasonal ? seasonStart : null,
         seasonEnd: isSeasonal ? seasonEnd : null,
         weatherSensitive,
+        photoUrl: photoUrl || undefined,
       });
     } else {
       addTask({
@@ -178,6 +203,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ onClose, taskToEdit 
         isCustom: true,
         defaultOrder: 20,
         weatherSensitive,
+        photoUrl: photoUrl || undefined,
       });
     }
     onClose();
@@ -438,6 +464,66 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ onClose, taskToEdit 
               placeholder="np. Gdzie leży sprzęt, jakie środki czystości zastosować..."
               className="w-full px-3.5 py-2 bg-white border border-[#78350F]/20 rounded-xl text-xs text-[#2D4F1E] focus:outline-none focus:ring-2 focus:ring-[#2D4F1E]/40 resize-none"
             />
+          </div>
+
+          {/* Reference photo — pokaż co / gdzie trzeba zrobić */}
+          <div>
+            <label className="block text-xs font-bold text-[#78350F] mb-1">
+              Zdjęcie zadania (opcjonalne):
+            </label>
+            <input
+              ref={taskCameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleTaskPhoto}
+            />
+            <input
+              ref={taskFileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleTaskPhoto}
+            />
+
+            {photoUrl ? (
+              <div className="relative rounded-2xl overflow-hidden border border-[#78350F]/20 group">
+                <img src={photoUrl} alt="Zadanie" className="w-full h-36 object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPhotoUrl('')}
+                  className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm transition-colors"
+                  title="Usuń zdjęcie"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => taskCameraInputRef.current?.click()}
+                  disabled={isUploadingPhoto}
+                  className="py-2.5 px-3 rounded-xl bg-white hover:bg-[#78350F]/5 text-[#78350F] border border-[#78350F]/20 font-bold text-xs flex items-center justify-center gap-2 shadow-2xs transition-all disabled:opacity-60"
+                >
+                  {isUploadingPhoto ? <Loader2 className="w-4 h-4 animate-spin text-[#D97706]" /> : <Camera className="w-4 h-4 text-[#D97706]" />}
+                  <span>Zrób zdjęcie</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => taskFileInputRef.current?.click()}
+                  disabled={isUploadingPhoto}
+                  className="py-2.5 px-3 rounded-xl bg-white hover:bg-[#78350F]/5 text-[#78350F] border border-[#78350F]/20 font-bold text-xs flex items-center justify-center gap-2 shadow-2xs transition-all disabled:opacity-60"
+                >
+                  <Upload className="w-4 h-4 text-[#D97706]" />
+                  <span>Wgraj z galerii</span>
+                </button>
+              </div>
+            )}
+            <p className="text-[10px] text-[#78350F]/50 mt-1">
+              Np. bałagan do posprzątania albo miejsce, o które chodzi — domownik zobaczy zdjęcie w szczegółach zadania.
+            </p>
           </div>
 
           {/* Actions */}
